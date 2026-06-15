@@ -11,11 +11,23 @@ type CreateLostItemPayload = {
     imageUrl?: string | null;
     location: string;
     dateLost: Date;
+    verificationQuestion: string;
+    verificationAnswer: string;
+};
+
+type LostItemRecord = {
+    verificationAnswer?: string | null;
+    [key: string]: unknown;
+};
+
+const omitVerificationAnswer = <T extends LostItemRecord>(item: T) => {
+    const { verificationAnswer: _answer, ...rest } = item;
+    return rest;
 };
 
 export const LostItemService = {
     create: async (payload: CreateLostItemPayload, userId: string) => {
-        return prisma.lostItem.create({
+        const item = await prisma.lostItem.create({
             data: {
                 ...payload,
                 userId,
@@ -25,6 +37,8 @@ export const LostItemService = {
                 user: { select: { id: true, name: true, email: true } },
             },
         });
+
+        return omitVerificationAnswer(item);
     },
 
     getById: async (id: string) => {
@@ -39,11 +53,11 @@ export const LostItemService = {
             throw new AppError(StatusCodes.NOT_FOUND, "Lost item not found");
         }
 
-        return item;
+        return omitVerificationAnswer(item);
     },
 
     list: async (query: Record<string, unknown>) => {
-        return new QueryBuilder(prisma.lostItem, query, {
+        const result = await new QueryBuilder(prisma.lostItem, query, {
             searchableFields: ["title", "description", "location"],
             filterableFields: ["category", "status"],
         })
@@ -55,6 +69,42 @@ export const LostItemService = {
                 user: { select: { id: true, name: true } },
             })
             .execute();
+
+        return {
+            ...result,
+            data: (result.data as LostItemRecord[]).map(omitVerificationAnswer),
+        };
+    },
+
+    listMine: async (userId: string, limit = 50) => {
+        const items = await prisma.lostItem.findMany({
+            where: { userId },
+            orderBy: { createdAt: "desc" },
+            take: limit,
+            include: {
+                user: { select: { id: true, name: true } },
+            },
+        });
+
+        return items.map(omitVerificationAnswer);
+    },
+
+    listMineForClaim: async (userId: string) => {
+        return prisma.lostItem.findMany({
+            where: {
+                userId,
+                status: LostItemStatus.OPEN,
+                verificationQuestion: { not: null },
+            },
+            orderBy: { createdAt: "desc" },
+            select: {
+                id: true,
+                title: true,
+                category: true,
+                status: true,
+                verificationQuestion: true,
+            },
+        });
     },
 
     deleteOwn: async (id: string, userId: string) => {

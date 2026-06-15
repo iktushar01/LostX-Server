@@ -3,12 +3,17 @@ import { StatusCodes } from "http-status-codes";
 import { catchAsync } from "../../shared/catchAsync";
 import { sendResponse } from "../../shared/sendResponse";
 import { IRequestUser } from "../auth/auth.interface";
+import { getUploadedImageUrl } from "../../utils/uploadItemImage";
 import { FoundItemService } from "./found-item.service";
 
 const create = catchAsync(async (req: Request, res: Response) => {
     const user = req.user as IRequestUser;
+    const imageUrl = await getUploadedImageUrl(req);
 
-    const result = await FoundItemService.create(req.body, user.userId);
+    const result = await FoundItemService.create(
+        { ...req.body, imageUrl },
+        user.userId,
+    );
 
     sendResponse(res, {
         statusCode: StatusCodes.CREATED,
@@ -41,6 +46,19 @@ const list = catchAsync(async (req: Request, res: Response) => {
     });
 });
 
+const listMine = catchAsync(async (req: Request, res: Response) => {
+    const user = req.user as IRequestUser;
+    const limit = req.query.limit ? Number(req.query.limit) : 50;
+    const result = await FoundItemService.listMine(user.userId, limit);
+
+    sendResponse(res, {
+        statusCode: StatusCodes.OK,
+        success: true,
+        message: "Your found items retrieved",
+        data: result,
+    });
+});
+
 const remove = catchAsync(async (req: Request, res: Response) => {
     const user = req.user as IRequestUser;
     const result = await FoundItemService.deleteOwn(req.params.id as string, user.userId);
@@ -53,4 +71,4 @@ const remove = catchAsync(async (req: Request, res: Response) => {
     });
 });
 
-export const FoundItemController = { create, getById, list, remove };
+export const FoundItemController = { create, getById, list, listMine, remove };

@@ -5,9 +5,10 @@ export const createLostItemZodSchema = z.object({
     title: z.string().min(2).max(120).trim(),
     description: z.string().min(5).max(2000).trim(),
     category: z.nativeEnum(ItemCategory),
-    imageUrl: z.string().url().optional().nullable(),
     location: z.string().min(2).max(200).trim(),
     dateLost: z.coerce.date(),
+    verificationQuestion: z.string().min(5).max(500).trim(),
+    verificationAnswer: z.string().min(2).max(500).trim(),
 });
 
 export const listLostItemsQuerySchema = z.object({

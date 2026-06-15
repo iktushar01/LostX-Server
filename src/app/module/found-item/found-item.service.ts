@@ -64,6 +64,17 @@ export const FoundItemService = {
             .execute();
     },
 
+    listMine: async (userId: string, limit = 50) => {
+        return prisma.foundItem.findMany({
+            where: { userId },
+            orderBy: { createdAt: "desc" },
+            take: limit,
+            include: {
+                user: { select: { id: true, name: true } },
+            },
+        });
+    },
+
     deleteOwn: async (id: string, userId: string) => {
         const item = await prisma.foundItem.findUnique({ where: { id } });
 

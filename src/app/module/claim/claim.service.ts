@@ -1,8 +1,13 @@
-import type { Prisma } from "../../../generated/prisma/index";
 import { StatusCodes } from "http-status-codes";
 import { prisma } from "../../lib/prisma";
-import { ClaimStatus, FoundItemStatus, Role } from "../../lib/prisma-exports";
+import { ClaimStatus, FoundItemStatus, LostItemStatus, Role } from "../../lib/prisma-exports";
 import AppError from "../../errorHelpers/AppError";
+
+type CreateClaimPayload = {
+    foundItemId: string;
+    lostItemId: string;
+    answer: string;
+};
 
 const claimInclude = {
     user: { select: { id: true, name: true, email: true } },
@@ -11,21 +16,45 @@ const claimInclude = {
             user: { select: { id: true, name: true, email: true } },
         },
     },
+    lostItem: {
+        select: {
+            id: true,
+            title: true,
+            verificationQuestion: true,
+            verificationAnswer: true,
+            status: true,
+            category: true,
+        },
+    },
 } as const;
-
-type CreateClaimPayload = {
-    foundItemId: string;
-    message: string;
-};
 
 export const ClaimService = {
     create: async (payload: CreateClaimPayload, userId: string) => {
-        const foundItem = await prisma.foundItem.findUnique({
-            where: { id: payload.foundItemId },
-        });
+        const [foundItem, lostItem] = await Promise.all([
+            prisma.foundItem.findUnique({ where: { id: payload.foundItemId } }),
+            prisma.lostItem.findUnique({ where: { id: payload.lostItemId } }),
+        ]);
 
         if (!foundItem) {
             throw new AppError(StatusCodes.NOT_FOUND, "Found item not found");
+        }
+
+        if (!lostItem) {
+            throw new AppError(StatusCodes.NOT_FOUND, "Lost item report not found");
+        }
+
+        if (lostItem.userId !== userId) {
+            throw new AppError(
+                StatusCodes.FORBIDDEN,
+                "You can only claim using your own lost item reports",
+            );
+        }
+
+        if (lostItem.status !== LostItemStatus.OPEN) {
+            throw new AppError(
+                StatusCodes.BAD_REQUEST,
+                "This lost item report is no longer open for claims",
+            );
         }
 
         if (foundItem.userId === userId) {
@@ -42,30 +71,45 @@ export const ClaimService = {
             );
         }
 
+        if (!lostItem.verificationQuestion?.trim()) {
+            throw new AppError(
+                StatusCodes.BAD_REQUEST,
+                "Selected lost item is missing a verification question",
+            );
+        }
+
         const existingClaim = await prisma.claim.findFirst({
             where: {
                 foundItemId: payload.foundItemId,
                 userId,
-                status: ClaimStatus.PENDING,
             },
         });
 
         if (existingClaim) {
             throw new AppError(
                 StatusCodes.CONFLICT,
-                "You already have a pending claim for this item",
+                "You have already submitted a claim for this item",
             );
         }
 
         return prisma.claim.create({
             data: {
                 foundItemId: payload.foundItemId,
+                lostItemId: payload.lostItemId,
                 userId,
-                message: payload.message,
+                answer: payload.answer,
                 status: ClaimStatus.PENDING,
             },
             include: {
                 foundItem: true,
+                lostItem: {
+                    select: {
+                        id: true,
+                        title: true,
+                        verificationQuestion: true,
+                        status: true,
+                    },
+                },
                 user: { select: { id: true, name: true, email: true } },
             },
         });
@@ -81,12 +125,20 @@ export const ClaimService = {
                         user: { select: { id: true, name: true } },
                     },
                 },
+                lostItem: {
+                    select: {
+                        id: true,
+                        title: true,
+                        verificationQuestion: true,
+                        status: true,
+                    },
+                },
             },
         });
     },
 
     listAll: async (filters?: { search?: string; status?: ClaimStatus }) => {
-        const where: Prisma.ClaimWhereInput = {};
+        const where: import("../../../generated/prisma/index").Prisma.ClaimWhereInput = {};
 
         if (filters?.status) {
             where.status = filters.status;
@@ -132,7 +184,7 @@ export const ClaimService = {
 
         const claim = await prisma.claim.findUnique({
             where: { id: claimId },
-            include: { foundItem: true },
+            include: { foundItem: true, lostItem: true },
         });
 
         if (!claim) {
@@ -150,10 +202,7 @@ export const ClaimService = {
             const updatedClaim = await tx.claim.update({
                 where: { id: claimId },
                 data: { status },
-                include: {
-                    user: { select: { id: true, name: true, email: true } },
-                    foundItem: true,
-                },
+                include: claimInclude,
             });
 
             if (status === ClaimStatus.APPROVED) {
@@ -161,6 +210,13 @@ export const ClaimService = {
                     where: { id: claim.foundItemId },
                     data: { status: FoundItemStatus.CLAIMED },
                 });
+
+                if (claim.lostItemId) {
+                    await tx.lostItem.update({
+                        where: { id: claim.lostItemId },
+                        data: { status: LostItemStatus.RECOVERED },
+                    });
+                }
 
                 await tx.claim.updateMany({
                     where: {

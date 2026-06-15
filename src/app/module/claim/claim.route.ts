@@ -32,6 +32,13 @@ router.get(
     ClaimController.listAll,
 );
 
+router.get(
+    "/:id",
+    checkAuth(...adminRoles),
+    validateRequest(claimIdParamSchema, "params"),
+    ClaimController.getById,
+);
+
 router.patch(
     "/:id/status",
     checkAuth(...adminRoles),

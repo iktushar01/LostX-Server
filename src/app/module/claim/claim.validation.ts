@@ -13,3 +13,8 @@ export const updateClaimStatusZodSchema = z.object({
 export const claimIdParamSchema = z.object({
     id: z.string().uuid(),
 });
+
+export const listClaimsQuerySchema = z.object({
+    search: z.string().trim().optional(),
+    status: z.enum([ClaimStatus.PENDING, ClaimStatus.APPROVED, ClaimStatus.REJECTED]).optional(),
+});

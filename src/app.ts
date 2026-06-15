@@ -30,7 +30,7 @@ app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 
 app.get("/", (req: Request, res: Response) => {
-  res.send("Injentro Server is running 🚀");
+  res.send("LostX Server is running 🚀");
 });
 
 

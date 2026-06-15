@@ -1,7 +1,17 @@
+import type { Prisma } from "../../../generated/prisma/index";
 import { StatusCodes } from "http-status-codes";
 import { prisma } from "../../lib/prisma";
 import { ClaimStatus, FoundItemStatus, Role } from "../../lib/prisma-exports";
 import AppError from "../../errorHelpers/AppError";
+
+const claimInclude = {
+    user: { select: { id: true, name: true, email: true } },
+    foundItem: {
+        include: {
+            user: { select: { id: true, name: true, email: true } },
+        },
+    },
+} as const;
 
 type CreateClaimPayload = {
     foundItemId: string;
@@ -75,18 +85,40 @@ export const ClaimService = {
         });
     },
 
-    listAll: async () => {
+    listAll: async (filters?: { search?: string; status?: ClaimStatus }) => {
+        const where: Prisma.ClaimWhereInput = {};
+
+        if (filters?.status) {
+            where.status = filters.status;
+        }
+
+        if (filters?.search) {
+            where.user = {
+                OR: [
+                    { name: { contains: filters.search, mode: "insensitive" } },
+                    { email: { contains: filters.search, mode: "insensitive" } },
+                ],
+            };
+        }
+
         return prisma.claim.findMany({
+            where,
             orderBy: { createdAt: "desc" },
-            include: {
-                user: { select: { id: true, name: true, email: true } },
-                foundItem: {
-                    include: {
-                        user: { select: { id: true, name: true, email: true } },
-                    },
-                },
-            },
+            include: claimInclude,
         });
+    },
+
+    getById: async (claimId: string) => {
+        const claim = await prisma.claim.findUnique({
+            where: { id: claimId },
+            include: claimInclude,
+        });
+
+        if (!claim) {
+            throw new AppError(StatusCodes.NOT_FOUND, "Claim not found");
+        }
+
+        return claim;
     },
 
     updateStatus: async (

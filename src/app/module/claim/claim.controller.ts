@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
+import { ClaimStatus } from "../../lib/prisma-exports";
 import { catchAsync } from "../../shared/catchAsync";
 import { sendResponse } from "../../shared/sendResponse";
 import { IRequestUser } from "../auth/auth.interface";
@@ -32,12 +33,41 @@ const listMine = catchAsync(async (req: Request, res: Response) => {
 });
 
 const listAll = catchAsync(async (req: Request, res: Response) => {
-    const result = await ClaimService.listAll();
+    const search =
+        typeof req.query.search === "string" ? req.query.search : undefined;
+    const status =
+        typeof req.query.status === "string" &&
+        Object.values(ClaimStatus).includes(req.query.status as ClaimStatus)
+            ? (req.query.status as ClaimStatus)
+            : undefined;
+
+    const filters: { search?: string; status?: ClaimStatus } = {};
+
+    if (search) {
+        filters.search = search;
+    }
+
+    if (status) {
+        filters.status = status;
+    }
+
+    const result = await ClaimService.listAll(filters);
 
     sendResponse(res, {
         statusCode: StatusCodes.OK,
         success: true,
         message: "All claims retrieved",
+        data: result,
+    });
+});
+
+const getById = catchAsync(async (req: Request, res: Response) => {
+    const result = await ClaimService.getById(req.params.id as string);
+
+    sendResponse(res, {
+        statusCode: StatusCodes.OK,
+        success: true,
+        message: "Claim retrieved",
         data: result,
     });
 });
@@ -59,4 +89,4 @@ const updateStatus = catchAsync(async (req: Request, res: Response) => {
     });
 });
 
-export const ClaimController = { create, listMine, listAll, updateStatus };
+export const ClaimController = { create, listMine, listAll, getById, updateStatus };

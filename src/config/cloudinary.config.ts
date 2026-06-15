@@ -31,6 +31,8 @@ const getCloudinaryResourceType = (fileName: string): "image" | "raw" => {
 
 const collapseDuplicateFolderSegments = (assetPath: string) =>
     assetPath
+        .replace(/^(?:Injentro|LostX)\/pdfs\/(?:Injentro|LostX)\/pdfs\//, "LostX/pdfs/")
+        .replace(/^(?:Injentro|LostX)\/images\/(?:Injentro|LostX)\/images\//, "LostX/images/")
         .replace(/^(Injentro\/pdfs)\/\1\//, "$1/")
         .replace(/^(Injentro\/images)\/\1\//, "$1/");
 
@@ -119,7 +121,7 @@ export const uploadFileToCloudinary = async (
             {
                 resource_type: resourceType,
                 public_id: uniqueName,
-                folder: `Injentro/${folder}`,
+                folder: `LostX/${folder}`,
                 use_filename: false,
                 unique_filename: false,
             },

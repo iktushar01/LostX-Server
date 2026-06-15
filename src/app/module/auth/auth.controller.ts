@@ -58,7 +58,6 @@ const registerClient = catchAsync(async (req: Request, res: Response) => {
         message: "Client registered successfully",
         data: {
             user: result.user,
-            client: result.client,
             accessToken: result.accessToken,
             refreshToken: result.refreshToken,
             token: result.token,

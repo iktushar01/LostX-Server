@@ -86,31 +86,28 @@ const registerClient = async (payload: IRegisterClient, fileBuffer?: Buffer, fil
         throw new AppError(StatusCodes.BAD_REQUEST, "User registration failed");
     }
 
+    const normalizedEmail = email.toLowerCase();
+    const persistedUser = await prisma.user.findUnique({
+        where: { email: normalizedEmail },
+    });
+
+    // With requireEmailVerification, better-auth returns a synthetic user (not in DB)
+    // for duplicate emails to prevent enumeration — detect that here.
+    if (!persistedUser || persistedUser.id !== authData.user.id) {
+        if (imageUrl) {
+            await deleteFileFromCloudinary(imageUrl, "image").catch(() => {});
+        }
+        throw new AppError(StatusCodes.CONFLICT, "A user with this email already exists");
+    }
+
     try {
-        // Create the client profile and update the user's image URL in a single transaction
-        const [client] = await prisma.$transaction(async (tx) => {
-            const createdClient = await tx.client.create({
-                data: {
-                    userId: authData.user.id,
-                    name,
-                    email,
-                    ...(imageUrl !== undefined ? { profilePhoto: imageUrl } : {}),
-                },
+        if (imageUrl) {
+            await prisma.user.update({
+                where: { id: persistedUser.id },
+                data: { image: imageUrl },
             });
-
-            // Update user image if there was an upload
-            if (imageUrl) {
-                await tx.user.update({
-                    where: { id: authData.user.id },
-                    data: { image: imageUrl },
-                });
-                
-                // Also update the session user context object so we can use it properly below
-                authData.user.image = imageUrl;
-            }
-
-            return [createdClient];
-        });
+            authData.user.image = imageUrl;
+        }
 
         const { accessToken, refreshToken } = buildTokenPair({
             id: authData.user.id,
@@ -124,20 +121,13 @@ const registerClient = async (payload: IRegisterClient, fileBuffer?: Buffer, fil
 
         return {
             user: authData.user,
-            client,
             token: authData.token,
             accessToken,
             refreshToken,
         };
     } catch (error) {
-        // Rollback the auth user and delete the uploaded image if needed
-        try {
-            if (imageUrl) {
-                await deleteFileFromCloudinary(imageUrl, "image");
-            }
-            await prisma.user.delete({ where: { id: authData.user.id } });
-        } catch (rollbackErr) {
-            console.error("Rollback failed for user:", authData.user.id, rollbackErr);
+        if (imageUrl) {
+            await deleteFileFromCloudinary(imageUrl, "image").catch(() => {});
         }
 
         if (
@@ -176,7 +166,20 @@ const loginUser = async (payload: ILoginUser) => {
     }
 
     // Credentials are validated by better-auth
-    const authData = await auth.api.signInEmail({ body: { email, password } });
+    let authData;
+    try {
+        authData = await auth.api.signInEmail({ body: { email, password } });
+    } catch (error: any) {
+        const message = error?.message?.toLowerCase() ?? "";
+        if (
+            message.includes("verify") ||
+            message.includes("verification") ||
+            !dbUser.emailVerified
+        ) {
+            throw new AppError(StatusCodes.FORBIDDEN, "Email not verified");
+        }
+        throw new AppError(StatusCodes.UNAUTHORIZED, "Invalid email or password");
+    }
 
     const { accessToken, refreshToken } = buildTokenPair({
         id: authData.user.id,
@@ -201,10 +204,6 @@ const loginUser = async (payload: ILoginUser) => {
 const fetchCurrentUserById = async (userId: string) => {
     const dbUser = await prisma.user.findUnique({
         where: { id: userId },
-        include: {
-            client: true,
-            admin: true,
-        },
     });
 
     if (!dbUser) {
@@ -221,24 +220,15 @@ const getMe = async (user: IRequestUser) => {
 const updateProfile = async (payload: IUpdateProfilePayload) => {
     const {
         userId,
-        role,
         name,
         profilePhoto,
         fileBuffer,
         fileName,
-        contactNumber,
-        address,
-        gender,
     } = payload;
 
     const dbUser = await prisma.user.findUnique({
         where: { id: userId },
-        select: {
-            id: true,
-            role: true,
-            client: { select: { id: true } },
-            admin: { select: { id: true } },
-        },
+        select: { id: true },
     });
 
     if (!dbUser) {
@@ -253,72 +243,22 @@ const updateProfile = async (payload: IUpdateProfilePayload) => {
     const finalProfilePhoto =
         uploadedProfilePhoto !== undefined ? uploadedProfilePhoto : profilePhoto;
 
-    await prisma.$transaction(async (tx) => {
-        const userUpdateData: Prisma.UserUpdateInput = {};
+    const userUpdateData: Prisma.UserUpdateInput = {};
 
-        if (name !== undefined) {
-            userUpdateData.name = name;
-        }
+    if (name !== undefined) {
+        userUpdateData.name = name;
+    }
 
-        if (finalProfilePhoto !== undefined) {
-            userUpdateData.image = finalProfilePhoto;
-        }
+    if (finalProfilePhoto !== undefined) {
+        userUpdateData.image = finalProfilePhoto;
+    }
 
-        if (Object.keys(userUpdateData).length > 0) {
-            await tx.user.update({
-                where: { id: userId },
-                data: userUpdateData,
-            });
-        }
-
-        if (role === Role.CLIENT && dbUser.client) {
-            const clientUpdateData: Prisma.ClientUpdateInput = {};
-
-            if (name !== undefined) {
-                clientUpdateData.name = name;
-            }
-            if (finalProfilePhoto !== undefined) {
-                clientUpdateData.profilePhoto = finalProfilePhoto;
-            }
-            if (contactNumber !== undefined) {
-                clientUpdateData.contactNumber = contactNumber;
-            }
-            if (address !== undefined) {
-                clientUpdateData.address = address;
-            }
-            if (gender !== undefined) {
-                clientUpdateData.gender = gender;
-            }
-
-            if (Object.keys(clientUpdateData).length > 0) {
-                await tx.client.update({
-                    where: { userId },
-                    data: clientUpdateData,
-                });
-            }
-        }
-
-        if ((role === Role.ADMIN || role === Role.SUPER_ADMIN) && dbUser.admin) {
-            const adminUpdateData: Prisma.AdminUpdateInput = {};
-
-            if (name !== undefined) {
-                adminUpdateData.name = name;
-            }
-            if (finalProfilePhoto !== undefined) {
-                adminUpdateData.profilePhoto = finalProfilePhoto;
-            }
-            if (contactNumber !== undefined) {
-                adminUpdateData.contactNumber = contactNumber;
-            }
-
-            if (Object.keys(adminUpdateData).length > 0) {
-                await tx.admin.update({
-                    where: { userId },
-                    data: adminUpdateData,
-                });
-            }
-        }
-    });
+    if (Object.keys(userUpdateData).length > 0) {
+        await prisma.user.update({
+            where: { id: userId },
+            data: userUpdateData,
+        });
+    }
 
     return fetchCurrentUserById(userId);
 };
@@ -504,22 +444,6 @@ const googleLoginSuccess = async (session: {
     };
 }) => {
     const { user } = session;
-
-    // Lazily create the client profile if this is the first Google sign-in
-    const clientExists = await prisma.client.findUnique({
-        where: { userId: user.id },
-    });
-
-    if (!clientExists) {
-        await prisma.client.create({
-            data: {
-                userId: user.id,
-                name: user.name,
-                email: user.email,
-                ...(user.image !== undefined ? { profilePhoto: user.image } : {}),
-            },
-        });
-    }
 
     const { accessToken, refreshToken } = buildTokenPair({
         id: user.id,

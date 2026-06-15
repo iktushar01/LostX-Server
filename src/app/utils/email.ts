@@ -34,7 +34,7 @@ export const sendEmail = async ({ subject, to, templateName, templateData, attac
         const templatePath = path.resolve(process.cwd(), `src/app/templates/${templateName}.ejs`);
         const html = await ejs.renderFile(templatePath, templateData);
         const info = await transporter.sendMail({
-            from: `"Injentro" <${envVars.EMAIL_USER}>`,
+            from: `"LostX" <${envVars.EMAIL_USER}>`,
             to: to,
             subject: subject,
             html: html,

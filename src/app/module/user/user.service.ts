@@ -1,4 +1,4 @@
-import { Role } from "../../lib/prisma-exports";
+import { Role, UserRole } from "../../lib/prisma-exports";
 import AppError from "../../errorHelpers/AppError";
 import { auth } from "../../lib/auth";
 import { prisma } from "../../lib/prisma";
@@ -72,25 +72,29 @@ const createAdmin = async (
 
     const { user: authUser } = await auth.api.signUpEmail({
         body: {
-            ...payload.admin,
+            name: payload.admin.name,
+            email: payload.admin.email,
             password: payload.password,
-            role: payload.role,
+            role: UserRole.ADMIN,
             needPasswordChange: false,
         },
     });
 
     try {
-        return await prisma.$transaction(async (tx) => {
-            return tx.admin.create({
-                data: {
-                    userId: authUser.id,
-                    ...payload.admin,
-                },
-                include: {
-                    user: { select: userPublicSelect },
-                },
-            });
+        const user = await prisma.user.update({
+            where: { id: authUser.id },
+            data: {
+                role: UserRole.ADMIN,
+                emailVerified: true,
+                needPasswordChange: false,
+                ...(payload.admin.profilePhoto
+                    ? { image: payload.admin.profilePhoto }
+                    : {}),
+            },
+            select: userPublicSelect,
         });
+
+        return user;
     } catch (error) {
         await rollbackAuthUser(authUser.id);
         throw error;

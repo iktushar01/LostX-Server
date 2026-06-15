@@ -1,4 +1,4 @@
-import { Role } from "../lib/prisma-exports";
+import { UserRole } from "../lib/prisma-exports";
 import { auth } from "../lib/auth";
 import { prisma } from "../lib/prisma";
 import { envVars } from "../../config/env";
@@ -12,77 +12,57 @@ export const seedSuperAdmin = async () => {
 
         const trimmedEmail = envVars.SUPER_ADMIN_EMAIL.trim();
 
-        const isSuperAdminExist = await prisma.user.findFirst({
+        const isAdminExist = await prisma.user.findFirst({
             where: {
-                role: Role.SUPER_ADMIN
-            }
+                role: UserRole.ADMIN,
+                email: trimmedEmail,
+            },
         });
 
-        if (isSuperAdminExist) {
-            console.log("Super admin already exists. Skipping seeding super admin.");
+        if (isAdminExist) {
+            console.log("Admin already exists. Skipping seeding.");
             return;
         }
 
-        console.log(`Seeding super admin with email: ${trimmedEmail}`);
+        console.log(`Seeding admin with email: ${trimmedEmail}`);
 
-        const superAdminUser = await auth.api.signUpEmail({
+        const adminUser = await auth.api.signUpEmail({
             body: {
                 email: trimmedEmail,
                 password: envVars.SUPER_ADMIN_PASSWORD,
                 name: "Super Admin",
-                role: Role.SUPER_ADMIN,
+                role: UserRole.ADMIN,
                 needPasswordChange: false,
                 rememberMe: false,
-            }
+            },
         });
 
-        if (!superAdminUser || !superAdminUser.user) {
-            throw new Error("Failed to create super admin user through auth API");
+        if (!adminUser?.user) {
+            throw new Error("Failed to create admin user through auth API");
         }
 
-        await prisma.$transaction(async (tx) => {
-            await tx.user.update({
-                where: {
-                    id: superAdminUser.user.id
-                },
-                data: {
-                    emailVerified: true,
-                }
-            });
-
-            await tx.admin.create({
-                data: {
-                    userId: superAdminUser.user.id,
-                    name: "Super Admin",
-                    email: trimmedEmail,
-                }
-            });
-        });
-
-        const superAdmin = await prisma.admin.findFirst({
-            where: {
-                email: trimmedEmail,
+        await prisma.user.update({
+            where: { id: adminUser.user.id },
+            data: {
+                emailVerified: true,
+                role: UserRole.ADMIN,
             },
-            include: {
-                user: true,
-            }
         });
 
-        console.log("Super Admin Created successfully.");
+        console.log("Admin created successfully.");
     } catch (error) {
-        console.error("Error seeding super admin: ", error);
-        
+        console.error("Error seeding admin:", error);
+
         try {
-            // Use deleteMany to avoid "Record not found" error if the user was never created
             if (envVars.SUPER_ADMIN_EMAIL) {
                 await prisma.user.deleteMany({
                     where: {
                         email: envVars.SUPER_ADMIN_EMAIL.trim(),
-                    }
+                    },
                 });
             }
         } catch (cleanupError) {
-            console.error("Failed to clean up super admin seed state:", cleanupError);
+            console.error("Failed to clean up admin seed state:", cleanupError);
         }
     }
-}
+};

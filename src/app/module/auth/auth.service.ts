@@ -165,6 +165,13 @@ const loginUser = async (payload: ILoginUser) => {
         throw new AppError(StatusCodes.FORBIDDEN, "This account has been suspended");
     }
 
+    if (!dbUser.emailVerified) {
+        throw new AppError(
+            StatusCodes.FORBIDDEN,
+            "Email not verified. Please check your inbox for the verification code.",
+        );
+    }
+
     // Credentials are validated by better-auth
     let authData;
     try {
@@ -368,15 +375,35 @@ const logoutUser = async (sessionToken: string) => {
 // ─── Email verification ───────────────────────────────────────────────────────
 
 const verifyEmail = async (email: string, otp: string) => {
-    const result = await auth.api.verifyEmailOTP({ body: { email, otp } });
+    const normalizedEmail = email.toLowerCase().trim();
+    const result = await auth.api.verifyEmailOTP({
+        body: { email: normalizedEmail, otp: otp.trim() },
+    });
 
     // better-auth may not always flush the DB field — ensure it is set
     if (result?.status && !result.user?.emailVerified) {
         await prisma.user.update({
-            where: { email },
+            where: { email: normalizedEmail },
             data: { emailVerified: true },
         });
     }
+};
+
+const resendVerificationOtp = async (email: string) => {
+    const normalizedEmail = email.toLowerCase().trim();
+    const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+
+    if (!user || user.isDeleted || user.status === UserStatus.DELETED) {
+        return;
+    }
+
+    if (user.emailVerified) {
+        throw new AppError(StatusCodes.BAD_REQUEST, "Email is already verified");
+    }
+
+    await auth.api.sendVerificationOTP({
+        body: { email: normalizedEmail, type: "email-verification" },
+    });
 };
 
 // ─── Forget / Reset password ──────────────────────────────────────────────────
@@ -492,6 +519,7 @@ export const AuthService = {
     changePassword,
     logoutUser,
     verifyEmail,
+    resendVerificationOtp,
     forgetPassword,
     resetPassword,
     googleLoginSuccess,

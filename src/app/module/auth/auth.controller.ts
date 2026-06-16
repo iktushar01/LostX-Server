@@ -203,6 +203,17 @@ const verifyEmail = catchAsync(async (req: Request, res: Response) => {
     });
 });
 
+const resendVerificationOtp = catchAsync(async (req: Request, res: Response) => {
+    await AuthService.resendVerificationOtp(req.body.email);
+
+    sendResponse(res, {
+        statusCode: StatusCodes.OK,
+        success: true,
+        message: "Verification code sent successfully",
+        data: null,
+    });
+});
+
 // ─── Forget / Reset Password ──────────────────────────────────────────────────
 
 const forgetPassword = catchAsync(async (req: Request, res: Response) => {
@@ -352,6 +363,7 @@ export const AuthController = {
     changePassword,
     logoutUser,
     verifyEmail,
+    resendVerificationOtp,
     forgetPassword,
     resetPassword,
     googleLogin,

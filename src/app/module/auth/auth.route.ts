@@ -8,6 +8,7 @@ import {
     registerClientZodSchema,
     loginZodSchema,
     verifyEmailZodSchema,
+    resendVerificationOtpZodSchema,
     forgetPasswordZodSchema,
     resetPasswordZodSchema,
  changePasswordZodSchema,
@@ -39,6 +40,12 @@ router.post(
     "/verify-email",
     validateRequest(verifyEmailZodSchema),
     AuthController.verifyEmail,
+);
+
+router.post(
+    "/resend-verification-otp",
+    validateRequest(resendVerificationOtpZodSchema),
+    AuthController.resendVerificationOtp,
 );
 
 router.post(

@@ -8,6 +8,7 @@ import AppError from "../errorHelpers/AppError";
 import { envVars } from "../../config/env";
 import handleZodError from "../errorHelpers/handlezoderror";
 import { TErrorResponse, TErrorSource } from "../interfaces/error.interfaces";
+import { isAPIError } from "better-auth/api";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const globalErrorhandler = (err: any, req: Request, res: Response, next: NextFunction) => {
@@ -76,6 +77,11 @@ export const globalErrorhandler = (err: any, req: Request, res: Response, next: 
                 message: err.message
             }
         ]
+    } else if (isAPIError(err)) {
+        statusCode = err.statusCode;
+        message = err.body?.message ?? err.message;
+        stack = err.stack;
+        errorSources = [{ path: "", message }];
     }
     else if (err instanceof Error) {
         statusCode = StatusCodes.INTERNAL_SERVER_ERROR;

@@ -50,11 +50,23 @@ export const changePasswordZodSchema = z.object({
 });
 
 export const verifyEmailZodSchema = z.object({
-    email: z.string({ message: "Email is required" }).email("Invalid email address"),
+    email: z
+        .string({ message: "Email is required" })
+        .email("Invalid email address")
+        .toLowerCase()
+        .trim(),
     otp: z
         .string({ message: "OTP is required" })
-        .min(4, "OTP must be at least 4 characters")
-        .max(10, "OTP must be at most 10 characters"),
+        .length(6, "OTP must be 6 digits")
+        .trim(),
+});
+
+export const resendVerificationOtpZodSchema = z.object({
+    email: z
+        .string({ message: "Email is required" })
+        .email("Invalid email address")
+        .toLowerCase()
+        .trim(),
 });
 
 export const forgetPasswordZodSchema = z.object({

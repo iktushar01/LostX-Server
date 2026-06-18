@@ -11,10 +11,44 @@ const create = catchAsync(async (req: Request, res: Response) => {
 
     const result = await ClaimService.create(req.body, user.userId);
 
+    const message = result.autoApproved
+        ? "Claim auto-approved — high confidence match with correct verification"
+        : "Claim submitted successfully — pending staff review";
+
     sendResponse(res, {
         statusCode: StatusCodes.CREATED,
         success: true,
-        message: "Claim submitted successfully",
+        message,
+        data: result,
+    });
+});
+
+const createQuick = catchAsync(async (req: Request, res: Response) => {
+    const user = req.user as IRequestUser;
+
+    const result = await ClaimService.createQuick(req.body, user.userId);
+
+    const message = result.autoApproved
+        ? "Quick claim auto-approved — lost report created and claim approved"
+        : "Quick claim submitted — lost report created, pending staff review";
+
+    sendResponse(res, {
+        statusCode: StatusCodes.CREATED,
+        success: true,
+        message,
+        data: result,
+    });
+});
+
+const confirmReceived = catchAsync(async (req: Request, res: Response) => {
+    const user = req.user as IRequestUser;
+
+    const result = await ClaimService.confirmReceived(req.params.id as string, user.userId);
+
+    sendResponse(res, {
+        statusCode: StatusCodes.OK,
+        success: true,
+        message: "Receipt confirmed — finder can now mark item as returned",
         data: result,
     });
 });
@@ -83,6 +117,7 @@ const updateStatus = catchAsync(async (req: Request, res: Response) => {
     const result = await ClaimService.updateStatus(
         req.params.id as string,
         req.body.status,
+        user.userId,
         user.role,
     );
 
@@ -94,4 +129,12 @@ const updateStatus = catchAsync(async (req: Request, res: Response) => {
     });
 });
 
-export const ClaimController = { create, listMine, listAll, getById, updateStatus };
+export const ClaimController = {
+    create,
+    createQuick,
+    confirmReceived,
+    listMine,
+    listAll,
+    getById,
+    updateStatus,
+};

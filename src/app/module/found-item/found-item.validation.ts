@@ -6,7 +6,11 @@ export const createFoundItemZodSchema = z.object({
     description: z.string().min(5).max(2000).trim(),
     category: z.nativeEnum(ItemCategory),
     location: z.string().min(2).max(200).trim(),
+    building: z.string().max(120).trim().optional(),
+    floor: z.string().max(20).trim().optional(),
+    room: z.string().max(20).trim().optional(),
     dateFound: z.coerce.date(),
+    onBehalfOfUserId: z.string().min(1).optional(),
 });
 
 export const updateFoundItemZodSchema = z
@@ -15,6 +19,9 @@ export const updateFoundItemZodSchema = z
         description: z.string().min(5).max(2000).trim().optional(),
         category: z.nativeEnum(ItemCategory).optional(),
         location: z.string().min(2).max(200).trim().optional(),
+        building: z.string().max(120).trim().optional(),
+        floor: z.string().max(20).trim().optional(),
+        room: z.string().max(20).trim().optional(),
         dateFound: z.coerce.date().optional(),
     })
     .refine((data) => Object.keys(data).length > 0, {

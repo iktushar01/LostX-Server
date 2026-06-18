@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
 import { catchAsync } from "../../shared/catchAsync";
 import { sendResponse } from "../../shared/sendResponse";
+import { IRequestUser } from "../auth/auth.interface";
 import { AdminService } from "./admin.service";
 
 const getStats = catchAsync(async (_req: Request, res: Response) => {
@@ -11,6 +12,29 @@ const getStats = catchAsync(async (_req: Request, res: Response) => {
         statusCode: StatusCodes.OK,
         success: true,
         message: "Admin statistics retrieved",
+        data: result,
+    });
+});
+
+const getAnalytics = catchAsync(async (_req: Request, res: Response) => {
+    const result = await AdminService.getAnalytics();
+
+    sendResponse(res, {
+        statusCode: StatusCodes.OK,
+        success: true,
+        message: "Analytics retrieved",
+        data: result,
+    });
+});
+
+const getAuditLogs = catchAsync(async (req: Request, res: Response) => {
+    const limit = req.query.limit ? Number(req.query.limit) : 50;
+    const result = await AdminService.getAuditLogs(limit);
+
+    sendResponse(res, {
+        statusCode: StatusCodes.OK,
+        success: true,
+        message: "Audit logs retrieved",
         data: result,
     });
 });
@@ -38,11 +62,13 @@ const listItems = catchAsync(async (req: Request, res: Response) => {
 });
 
 const setItemFeatured = catchAsync(async (req: Request, res: Response) => {
+    const user = req.user as IRequestUser;
     const type = req.params.type === "found" ? "found" : "lost";
     const result = await AdminService.setItemFeatured(
         type,
         req.params.id as string,
         Boolean(req.body.isFeatured),
+        user.userId,
     );
 
     sendResponse(res, {
@@ -54,8 +80,13 @@ const setItemFeatured = catchAsync(async (req: Request, res: Response) => {
 });
 
 const deleteItem = catchAsync(async (req: Request, res: Response) => {
+    const user = req.user as IRequestUser;
     const type = req.params.type === "found" ? "found" : "lost";
-    const result = await AdminService.deleteItem(type, req.params.id as string);
+    const result = await AdminService.deleteItem(
+        type,
+        req.params.id as string,
+        user.userId,
+    );
 
     sendResponse(res, {
         statusCode: StatusCodes.OK,
@@ -65,4 +96,11 @@ const deleteItem = catchAsync(async (req: Request, res: Response) => {
     });
 });
 
-export const AdminController = { getStats, listItems, setItemFeatured, deleteItem };
+export const AdminController = {
+    getStats,
+    getAnalytics,
+    getAuditLogs,
+    listItems,
+    setItemFeatured,
+    deleteItem,
+};

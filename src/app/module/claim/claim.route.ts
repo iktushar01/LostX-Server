@@ -11,18 +11,26 @@ import {
 import {
     claimIdParamSchema,
     createClaimZodSchema,
+    quickClaimZodSchema,
     updateClaimStatusZodSchema,
 } from "./claim.validation";
 
 const router = Router();
-const allRoles = [Role.CLIENT, Role.ADMIN, Role.SUPER_ADMIN] as const;
-const adminRoles = [Role.ADMIN, Role.SUPER_ADMIN] as const;
+const allRoles = [Role.CLIENT, Role.STAFF, Role.ADMIN, Role.SUPER_ADMIN] as const;
+const staffAndAdminRoles = [Role.STAFF, Role.ADMIN, Role.SUPER_ADMIN] as const;
 
 router.post(
     "/",
     checkAuth(...allRoles),
     validateRequest(createClaimZodSchema),
     ClaimController.create,
+);
+
+router.post(
+    "/quick",
+    checkAuth(...allRoles),
+    validateRequest(quickClaimZodSchema),
+    ClaimController.createQuick,
 );
 
 router.get(
@@ -33,7 +41,7 @@ router.get(
 
 router.get(
     "/",
-    checkAuth(...adminRoles),
+    checkAuth(...staffAndAdminRoles),
     ClaimController.listAll,
 );
 
@@ -60,8 +68,15 @@ router.get(
 );
 
 router.patch(
+    "/:id/confirm-received",
+    checkAuth(...allRoles),
+    validateRequest(claimIdParamSchema, "params"),
+    ClaimController.confirmReceived,
+);
+
+router.patch(
     "/:id/status",
-    checkAuth(...adminRoles),
+    checkAuth(...staffAndAdminRoles),
     validateRequest(claimIdParamSchema, "params"),
     validateRequest(updateClaimStatusZodSchema),
     ClaimController.updateStatus,

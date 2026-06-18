@@ -36,6 +36,9 @@ export type ClaimStatus = (typeof ClaimStatus)[keyof typeof ClaimStatus];
 export const NotificationType = prismaModule.NotificationType;
 export type NotificationType = (typeof NotificationType)[keyof typeof NotificationType];
 
+export const AuditAction = prismaModule.AuditAction;
+export type AuditAction = (typeof AuditAction)[keyof typeof AuditAction];
+
 /** Profile field only — not stored on the user model */
 export const Gender = {
   MALE: "MALE",

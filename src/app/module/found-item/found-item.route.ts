@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { Role } from "../../lib/prisma-exports";
 import { checkAuth } from "../../middleware/checkAuth";
+import { optionalCheckAuth } from "../../middleware/optionalCheckAuth";
 import { validateRequest } from "../../middleware/validateRequest";
 import { memoryUpload } from "../../../config/multer.config";
 import { FoundItemController } from "./found-item.controller";
@@ -11,9 +12,9 @@ import {
 } from "./found-item.validation";
 
 const router = Router();
-const allRoles = [Role.CLIENT, Role.ADMIN, Role.SUPER_ADMIN] as const;
+const allRoles = [Role.CLIENT, Role.STAFF, Role.ADMIN, Role.SUPER_ADMIN] as const;
 
-router.get("/", FoundItemController.list);
+router.get("/", optionalCheckAuth(), FoundItemController.list);
 
 router.get(
     "/mine",
@@ -23,6 +24,7 @@ router.get(
 
 router.get(
     "/:id",
+    optionalCheckAuth(),
     validateRequest(foundItemIdParamSchema, "params"),
     FoundItemController.getById,
 );

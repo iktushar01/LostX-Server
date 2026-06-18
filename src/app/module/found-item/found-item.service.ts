@@ -6,6 +6,12 @@ import { QueryBuilder } from "../../utils/QueryBuilder";
 import { NotificationService } from "../notification/notification.service";
 import { MatchService } from "../match/match.service";
 import { EmbeddingService } from "../chatbot/embedding.service";
+import { DuplicateService } from "../duplicate/duplicate.service";
+import { buildLocationString } from "../../utils/location.util";
+import { applyFoundItemLocationPrivacy } from "../../utils/item-privacy.util";
+import { isStaffOrAdmin } from "../../utils/auth-roles.util";
+import { AuditService } from "../audit/audit.service";
+import { AuditAction } from "../../lib/prisma-exports";
 
 type CreateFoundItemPayload = {
     title: string;
@@ -13,17 +19,45 @@ type CreateFoundItemPayload = {
     category: ItemCategory;
     imageUrl?: string | null;
     location: string;
+    building?: string | null;
+    floor?: string | null;
+    room?: string | null;
     dateFound: Date;
 };
 
 type UpdateFoundItemPayload = Partial<CreateFoundItemPayload>;
 
 export const FoundItemService = {
-    create: async (payload: CreateFoundItemPayload, userId: string) => {
+    create: async (
+        payload: CreateFoundItemPayload & { onBehalfOfUserId?: string },
+        actorId: string,
+        actorRole?: string,
+    ) => {
+        const { onBehalfOfUserId, ...itemPayload } = payload;
+        const ownerId = onBehalfOfUserId ?? actorId;
+
+        if (onBehalfOfUserId && !isStaffOrAdmin(actorRole ?? "")) {
+            throw new AppError(
+                StatusCodes.FORBIDDEN,
+                "Only staff can register found items on behalf of others",
+            );
+        }
+
+        const location = buildLocationString(itemPayload);
+
+        await DuplicateService.assertNotDuplicateFound({
+            userId: ownerId,
+            title: itemPayload.title,
+            category: itemPayload.category,
+            location,
+            eventDate: itemPayload.dateFound,
+        });
+
         const item = await prisma.foundItem.create({
             data: {
-                ...payload,
-                userId,
+                ...itemPayload,
+                location,
+                userId: ownerId,
                 status: FoundItemStatus.AVAILABLE,
             },
             include: {
@@ -33,10 +67,20 @@ export const FoundItemService = {
 
         EmbeddingService.scheduleFoundItemEmbedding(item.id);
 
+        if (onBehalfOfUserId) {
+            await AuditService.log({
+                actorId,
+                action: AuditAction.ITEM_REGISTERED_BY_STAFF,
+                entityType: "found_item",
+                entityId: item.id,
+                metadata: { onBehalfOfUserId },
+            });
+        }
+
         return item;
     },
 
-    getById: async (id: string) => {
+    getById: async (id: string, viewerUserId?: string, viewerRole?: string) => {
         const item = await prisma.foundItem.findUnique({
             where: { id },
             include: {
@@ -55,13 +99,33 @@ export const FoundItemService = {
             throw new AppError(StatusCodes.NOT_FOUND, "Found item not found");
         }
 
+        const hasApprovedClaim =
+            viewerUserId &&
+            (await prisma.claim.findFirst({
+                where: {
+                    foundItemId: id,
+                    userId: viewerUserId,
+                    status: ClaimStatus.APPROVED,
+                },
+            }));
+
         const suggestedMatches = await MatchService.getSuggestionsForFoundItem(id);
 
-        return { ...item, suggestedMatches };
+        const isOwner = viewerUserId === item.userId;
+        const isStaff = viewerRole ? isStaffOrAdmin(viewerRole) : false;
+
+        const withPrivacy = applyFoundItemLocationPrivacy(item, {
+            viewerUserId,
+            isOwner,
+            isStaffOrAdmin: isStaff,
+            hasApprovedClaim: Boolean(hasApprovedClaim),
+        });
+
+        return { ...withPrivacy, suggestedMatches };
     },
 
-    list: async (query: Record<string, unknown>) => {
-        return new QueryBuilder(prisma.foundItem as import("../../interfaces/query.interface").PrismaModelDelegate, query, {
+    list: async (query: Record<string, unknown>, viewerUserId?: string, viewerRole?: string) => {
+        const result = await new QueryBuilder(prisma.foundItem as import("../../interfaces/query.interface").PrismaModelDelegate, query, {
             searchableFields: ["title", "description", "location"],
             filterableFields: ["category", "status", "isFeatured"],
         })
@@ -73,6 +137,20 @@ export const FoundItemService = {
                 user: { select: { id: true, name: true } },
             })
             .execute();
+
+        const isStaff = viewerRole ? isStaffOrAdmin(viewerRole) : false;
+
+        return {
+            ...result,
+            data: (result.data as CreateFoundItemPayload[]).map((item) => {
+                const row = item as CreateFoundItemPayload & { id: string; userId: string };
+                return applyFoundItemLocationPrivacy(row, {
+                    viewerUserId,
+                    isOwner: viewerUserId === row.userId,
+                    isStaffOrAdmin: isStaff,
+                });
+            }),
+        };
     },
 
     listMine: async (userId: string, limit = 50) => {
@@ -166,12 +244,21 @@ export const FoundItemService = {
         }
 
         const isOwner = item.userId === userId;
-        const isAdmin = userRole === Role.ADMIN || userRole === Role.SUPER_ADMIN;
+        const isStaff = isStaffOrAdmin(userRole);
 
-        if (!isOwner && !isAdmin) {
+        if (!isOwner && !isStaff) {
             throw new AppError(
                 StatusCodes.FORBIDDEN,
-                "Only the finder or an admin can mark this item as returned",
+                "Only the finder or staff can mark this item as returned",
+            );
+        }
+
+        const approvedClaim = item.claims[0];
+
+        if (!isStaff && !approvedClaim?.receivedConfirmedAt) {
+            throw new AppError(
+                StatusCodes.BAD_REQUEST,
+                "The claimant must confirm receipt before this item can be marked returned",
             );
         }
 
@@ -183,7 +270,6 @@ export const FoundItemService = {
             },
         });
 
-        const approvedClaim = item.claims[0];
         if (approvedClaim?.user) {
             await NotificationService.notifyItemReturned({
                 userId: approvedClaim.user.id,
@@ -192,6 +278,13 @@ export const FoundItemService = {
                 itemTitle: item.title,
             });
         }
+
+        await AuditService.log({
+            actorId: userId,
+            action: AuditAction.ITEM_RETURNED,
+            entityType: "found_item",
+            entityId: id,
+        });
 
         return updated;
     },

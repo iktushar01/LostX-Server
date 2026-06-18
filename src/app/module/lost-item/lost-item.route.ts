@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { Role } from "../../lib/prisma-exports";
 import { checkAuth } from "../../middleware/checkAuth";
+import { optionalCheckAuth } from "../../middleware/optionalCheckAuth";
 import { validateRequest } from "../../middleware/validateRequest";
 import { memoryUpload } from "../../../config/multer.config";
 import { LostItemController } from "./lost-item.controller";
@@ -11,9 +12,9 @@ import {
 } from "./lost-item.validation";
 
 const router = Router();
-const allRoles = [Role.CLIENT, Role.ADMIN, Role.SUPER_ADMIN] as const;
+const allRoles = [Role.CLIENT, Role.STAFF, Role.ADMIN, Role.SUPER_ADMIN] as const;
 
-router.get("/", LostItemController.list);
+router.get("/", optionalCheckAuth(), LostItemController.list);
 
 router.get(
     "/mine/for-claim",
@@ -29,6 +30,7 @@ router.get(
 
 router.get(
     "/:id",
+    optionalCheckAuth(),
     validateRequest(lostItemIdParamSchema, "params"),
     LostItemController.getById,
 );

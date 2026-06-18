@@ -2,6 +2,7 @@ import type { Server } from "http";
 import app from "./app";
 import { envVars } from "./config/env";
 import { seedSuperAdmin } from "./app/utils/seed";
+import { ExpiryService } from "./app/module/expiry/expiry.service";
 
 // Load .env only in development
 if (process.env.NODE_ENV !== "production") {
@@ -67,6 +68,21 @@ const bootstrap = async () => {
         error
       );
     });
+
+    const runExpiryJob = () => {
+      ExpiryService.archiveStaleItems()
+        .then((result) => {
+          if (result.expiredLost > 0 || result.expiredFound > 0) {
+            console.log(
+              `[ExpiryJob] Archived ${result.expiredLost} lost and ${result.expiredFound} found items`,
+            );
+          }
+        })
+        .catch((error) => console.error("[ExpiryJob] Failed:", error));
+    };
+
+    setTimeout(runExpiryJob, 60_000);
+    setInterval(runExpiryJob, 24 * 60 * 60 * 1000);
   } catch (error: any) {
     if (error.code === "EADDRINUSE") {
       console.error(

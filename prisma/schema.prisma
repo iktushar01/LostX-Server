@@ -11,6 +11,7 @@ datasource db {
 
 enum Role {
   USER
+  STAFF
   ADMIN
 }
 
@@ -47,6 +48,7 @@ model User {
   claimMessages       ClaimMessage[]
   notifications       Notification[]
   chatLogs            ChatLog[]
+  auditLogs           AuditLog[]
 
   @@map("user")
 }
@@ -115,12 +117,15 @@ enum LostItemStatus {
   OPEN
   MATCHED
   RECOVERED
+  EXPIRED
+  CANCELLED
 }
 
 enum FoundItemStatus {
   AVAILABLE
   CLAIMED
   RETURNED
+  EXPIRED
 }
 
 enum ClaimStatus {
@@ -135,6 +140,19 @@ enum NotificationType {
   CLAIM_PENDING
   ITEM_RETURNED
   MATCH_FOUND
+}
+
+enum AuditAction {
+  CLAIM_APPROVED
+  CLAIM_REJECTED
+  CLAIM_AUTO_APPROVED
+  CLAIM_RECEIVED_CONFIRMED
+  ITEM_CREATED
+  ITEM_DELETED
+  ITEM_FEATURED
+  ITEM_RETURNED
+  ITEM_EXPIRED
+  ITEM_REGISTERED_BY_STAFF
 }
 
 model Notification {
@@ -161,6 +179,9 @@ model LostItem {
   category             ItemCategory
   imageUrl             String?
   location             String
+  building             String?
+  floor                String?
+  room                 String?
   dateLost             DateTime
   status               LostItemStatus @default(OPEN)
   isFeatured           Boolean        @default(false)
@@ -186,6 +207,9 @@ model FoundItem {
   category    ItemCategory
   imageUrl    String?
   location    String
+  building    String?
+  floor       String?
+  room        String?
   dateFound   DateTime
   status      FoundItemStatus @default(AVAILABLE)
   isFeatured  Boolean         @default(false)
@@ -203,19 +227,24 @@ model FoundItem {
 }
 
 model Claim {
-  id          String      @id @default(cuid())
-  foundItemId String
-  userId      String
-  answer      String
-  status      ClaimStatus @default(PENDING)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  lostItemId  String?
-  foundItem   FoundItem   @relation(fields: [foundItemId], references: [id], onDelete: Cascade)
-  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  lostItem    LostItem?   @relation(fields: [lostItemId], references: [id], onDelete: SetNull)
-  messages    ClaimMessage[]
+  id                  String      @id @default(cuid())
+  foundItemId         String
+  userId              String
+  answer              String
+  status              ClaimStatus @default(PENDING)
+  autoApproved        Boolean     @default(false)
+  matchScore          Int?
+  receivedConfirmedAt DateTime?
+  handoffCode         String?     @unique
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+  lostItemId          String?
+  foundItem           FoundItem   @relation(fields: [foundItemId], references: [id], onDelete: Cascade)
+  user                User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lostItem            LostItem?   @relation(fields: [lostItemId], references: [id], onDelete: SetNull)
+  messages            ClaimMessage[]
 
+  @@unique([foundItemId, userId])
   @@index([foundItemId])
   @@index([userId])
   @@index([status])
@@ -250,4 +279,20 @@ model ChatLog {
   @@index([userId])
   @@index([createdAt])
   @@map("chat_logs")
+}
+
+model AuditLog {
+  id         String      @id @default(cuid())
+  actorId    String
+  action     AuditAction
+  entityType String
+  entityId   String
+  metadata   Json?
+  createdAt  DateTime    @default(now())
+  actor      User        @relation(fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([actorId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
 }

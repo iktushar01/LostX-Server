@@ -6,20 +6,23 @@ import { AdminController } from "./admin.controller";
 import { adminFeatureItemZodSchema, adminItemTypeParamSchema } from "./admin.validation";
 
 const router = Router();
-const adminRoles = [Role.ADMIN, Role.SUPER_ADMIN] as const;
+const staffAndAdminRoles = [Role.STAFF, Role.ADMIN, Role.SUPER_ADMIN] as const;
+const adminOnlyRoles = [Role.ADMIN, Role.SUPER_ADMIN] as const;
 
-router.get("/stats", checkAuth(...adminRoles), AdminController.getStats);
-router.get("/items", checkAuth(...adminRoles), AdminController.listItems);
+router.get("/stats", checkAuth(...staffAndAdminRoles), AdminController.getStats);
+router.get("/analytics", checkAuth(...staffAndAdminRoles), AdminController.getAnalytics);
+router.get("/audit-logs", checkAuth(...adminOnlyRoles), AdminController.getAuditLogs);
+router.get("/items", checkAuth(...staffAndAdminRoles), AdminController.listItems);
 router.patch(
     "/items/:type/:id/feature",
-    checkAuth(...adminRoles),
+    checkAuth(...staffAndAdminRoles),
     validateRequest(adminItemTypeParamSchema, "params"),
     validateRequest(adminFeatureItemZodSchema),
     AdminController.setItemFeatured,
 );
 router.delete(
     "/items/:type/:id",
-    checkAuth(...adminRoles),
+    checkAuth(...adminOnlyRoles),
     validateRequest(adminItemTypeParamSchema, "params"),
     AdminController.deleteItem,
 );

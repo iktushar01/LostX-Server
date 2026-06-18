@@ -35,7 +35,12 @@ const getById = catchAsync(async (req: Request, res: Response) => {
 });
 
 const list = catchAsync(async (req: Request, res: Response) => {
-    const result = await LostItemService.list(req.query as Record<string, unknown>);
+    const user = req.user as IRequestUser | undefined;
+    const result = await LostItemService.list(
+        req.query as Record<string, unknown>,
+        user?.userId,
+        user?.role,
+    );
 
     sendResponse(res, {
         statusCode: StatusCodes.OK,

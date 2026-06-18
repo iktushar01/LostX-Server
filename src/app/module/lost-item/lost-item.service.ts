@@ -6,6 +6,10 @@ import { QueryBuilder } from "../../utils/QueryBuilder";
 import { MatchService } from "../match/match.service";
 import { EmbeddingService } from "../chatbot/embedding.service";
 import { hashVerificationAnswer } from "../../utils/verification.util";
+import { DuplicateService } from "../duplicate/duplicate.service";
+import { buildLocationString } from "../../utils/location.util";
+import { applyPublicItemPrivacy, isSensitiveCategory, type PublicItem } from "../../utils/item-privacy.util";
+import { isStaffOrAdmin } from "../../utils/auth-roles.util";
 
 type CreateLostItemPayload = {
     title: string;
@@ -13,6 +17,9 @@ type CreateLostItemPayload = {
     category: ItemCategory;
     imageUrl?: string | null;
     location: string;
+    building?: string | null;
+    floor?: string | null;
+    room?: string | null;
     dateLost: Date;
     verificationQuestion: string;
     verificationAnswer: string;
@@ -32,11 +39,21 @@ const omitVerificationAnswer = <T extends LostItemRecord>(item: T) => {
 
 export const LostItemService = {
     create: async (payload: CreateLostItemPayload, userId: string) => {
+        const location = buildLocationString(payload);
         const hashedAnswer = await hashVerificationAnswer(payload.verificationAnswer);
+
+        await DuplicateService.assertNotDuplicateLost({
+            userId,
+            title: payload.title,
+            category: payload.category,
+            location,
+            eventDate: payload.dateLost,
+        });
 
         const item = await prisma.lostItem.create({
             data: {
                 ...payload,
+                location,
                 verificationAnswer: hashedAnswer,
                 userId,
                 status: LostItemStatus.OPEN,
@@ -68,9 +85,9 @@ export const LostItemService = {
         return { ...omitVerificationAnswer(item), suggestedMatches };
     },
 
-    list: async (query: Record<string, unknown>) => {
+    list: async (query: Record<string, unknown>, viewerUserId?: string, viewerRole?: string) => {
         const result = await new QueryBuilder(prisma.lostItem as import("../../interfaces/query.interface").PrismaModelDelegate, query, {
-            searchableFields: ["title", "description", "location"],
+            searchableFields: ["title", "description", "location", "building"],
             filterableFields: ["category", "status", "isFeatured"],
         })
             .search()
@@ -82,9 +99,36 @@ export const LostItemService = {
             })
             .execute();
 
+        const isStaff = viewerRole ? isStaffOrAdmin(viewerRole) : false;
+
         return {
             ...result,
-            data: (result.data as LostItemRecord[]).map(omitVerificationAnswer),
+            data: (result.data as LostItemRecord[])
+                .filter((item) => {
+                    const row = item as LostItemRecord & { category: ItemCategory; userId: string };
+                    if (isSensitiveCategory(row.category) && row.userId !== viewerUserId && !isStaff) {
+                        return false;
+                    }
+                    return true;
+                })
+                .map((item) => {
+                    const row = item as LostItemRecord & {
+                        userId: string;
+                        category: ItemCategory;
+                        location: string;
+                        title: string;
+                        description: string;
+                        imageUrl?: string | null;
+                    };
+                    return applyPublicItemPrivacy(
+                        omitVerificationAnswer(row) as PublicItem,
+                        {
+                            viewerUserId,
+                            isOwner: viewerUserId === row.userId,
+                            isStaffOrAdmin: isStaff,
+                        },
+                    );
+                }),
         };
     },
 

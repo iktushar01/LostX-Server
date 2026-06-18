@@ -11,11 +11,14 @@ export type ChatbotMatch = {
     status: string;
     date: string;
     similarity: number;
+    /** Unified 0–100 score (rule-based when available, else semantic × 100). */
+    score: number;
 };
 
 export type ChatbotMeta = {
     matchCount: number;
     topSimilarity: number | null;
+    intent?: string;
 };
 
 export type ChatbotResponse = {

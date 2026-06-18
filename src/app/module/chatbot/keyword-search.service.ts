@@ -1,6 +1,7 @@
 import { prisma } from "../../lib/prisma";
 import { envVars } from "../../../config/env";
 import type { ChatbotMatch } from "./chatbot.interface";
+import type { SearchScope } from "./chatbot.intent";
 import {
     extractSearchTerms,
     phraseToCategoryHints,
@@ -32,10 +33,17 @@ const toMatch = (
     status: item.status,
     date: new Date(item.dateLost ?? item.dateFound!).toISOString(),
     similarity,
+    score: Math.round(similarity * 100),
 });
 
 export const KeywordSearchService = {
-    search: async (query: string): Promise<ChatbotMatch[]> => {
+    search: async (
+        query: string,
+        scope: Pick<SearchScope, "includeLost" | "includeFound"> = {
+            includeLost: true,
+            includeFound: true,
+        },
+    ): Promise<ChatbotMatch[]> => {
         const terms = extractSearchTerms(query);
         const categoryHints = phraseToCategoryHints(query);
 
@@ -55,40 +63,44 @@ export const KeywordSearchService = {
         ];
 
         const [lostItems, foundItems] = await Promise.all([
-            prisma.lostItem.findMany({
-                where: {
-                    status: { in: ["OPEN", "MATCHED"] },
-                    OR: orFilters,
-                },
-                take: 20,
-                select: {
-                    id: true,
-                    title: true,
-                    description: true,
-                    category: true,
-                    location: true,
-                    imageUrl: true,
-                    status: true,
-                    dateLost: true,
-                },
-            }),
-            prisma.foundItem.findMany({
-                where: {
-                    status: "AVAILABLE",
-                    OR: orFilters,
-                },
-                take: 20,
-                select: {
-                    id: true,
-                    title: true,
-                    description: true,
-                    category: true,
-                    location: true,
-                    imageUrl: true,
-                    status: true,
-                    dateFound: true,
-                },
-            }),
+            scope.includeLost
+                ? prisma.lostItem.findMany({
+                      where: {
+                          status: { in: ["OPEN", "MATCHED"] },
+                          OR: orFilters,
+                      },
+                      take: 20,
+                      select: {
+                          id: true,
+                          title: true,
+                          description: true,
+                          category: true,
+                          location: true,
+                          imageUrl: true,
+                          status: true,
+                          dateLost: true,
+                      },
+                  })
+                : Promise.resolve([]),
+            scope.includeFound
+                ? prisma.foundItem.findMany({
+                      where: {
+                          status: "AVAILABLE",
+                          OR: orFilters,
+                      },
+                      take: 20,
+                      select: {
+                          id: true,
+                          title: true,
+                          description: true,
+                          category: true,
+                          location: true,
+                          imageUrl: true,
+                          status: true,
+                          dateFound: true,
+                      },
+                  })
+                : Promise.resolve([]),
         ]);
 
         const scored: ChatbotMatch[] = [

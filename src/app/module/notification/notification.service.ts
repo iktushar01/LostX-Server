@@ -1,5 +1,5 @@
 import { prisma } from "../../lib/prisma";
-import { NotificationType } from "../../lib/prisma-exports";
+import { NotificationType, UserRole } from "../../lib/prisma-exports";
 import { sendEmail } from "../../utils/email";
 import { envVars } from "../../../config/env";
 
@@ -131,5 +131,101 @@ export const NotificationService = {
                 message: `Great news — "${params.itemTitle}" has been marked as returned to you.`,
             },
         });
+    },
+
+    notifyClaimPending: async (params: {
+        claimId: string;
+        claimantName: string;
+        itemTitle: string;
+    }) => {
+        const admins = await prisma.user.findMany({
+            where: { role: UserRole.ADMIN },
+            select: { id: true, email: true, name: true },
+        });
+
+        const href = `${envVars.FRONTEND_URL}/admin/claims/${params.claimId}`;
+
+        await Promise.all(
+            admins.map((admin) =>
+                NotificationService.create({
+                    userId: admin.id,
+                    type: NotificationType.CLAIM_PENDING,
+                    title: "New claim pending review",
+                    body: `${params.claimantName} submitted a claim for "${params.itemTitle}". Verification passed — review required.`,
+                    href,
+                }),
+            ),
+        );
+    },
+
+    notifyFinderNewClaim: async (params: {
+        finderId: string;
+        finderEmail: string;
+        finderName: string;
+        itemTitle: string;
+        claimantName: string;
+        claimId: string;
+    }) => {
+        const href = `${envVars.FRONTEND_URL}/claims/${params.claimId}`;
+        await NotificationService.create({
+            userId: params.finderId,
+            type: NotificationType.CLAIM_PENDING,
+            title: "Someone claimed your found item",
+            body: `${params.claimantName} submitted a claim for "${params.itemTitle}". An admin will review it.`,
+            href,
+        });
+
+        try {
+            await sendEmail({
+                to: params.finderEmail,
+                subject: "New claim on your found item",
+                templateName: "claim-approved",
+                templateData: {
+                    name: params.finderName,
+                    itemTitle: params.itemTitle,
+                    claimsUrl: href,
+                    headline: "New claim submitted",
+                    message: `${params.claimantName} submitted a claim for your found item "${params.itemTitle}". An admin will review it shortly.`,
+                },
+            });
+        } catch (error) {
+            console.error("Failed to send finder claim notification email:", error);
+        }
+    },
+
+    notifyMatchFound: async (params: {
+        userId: string;
+        userEmail: string;
+        userName: string;
+        lostItemTitle: string;
+        matchedItemTitle: string;
+        matchScore: number;
+        foundItemId: string;
+    }) => {
+        const href = `${envVars.FRONTEND_URL}/dashboard/found/${params.foundItemId}`;
+        await NotificationService.create({
+            userId: params.userId,
+            type: NotificationType.MATCH_FOUND,
+            title: "Possible match found",
+            body: `We found a possible match (${params.matchScore}%) for your lost item "${params.lostItemTitle}": "${params.matchedItemTitle}".`,
+            href,
+        });
+
+        try {
+            await sendEmail({
+                to: params.userEmail,
+                subject: "Possible match for your lost item",
+                templateName: "claim-approved",
+                templateData: {
+                    name: params.userName,
+                    itemTitle: params.lostItemTitle,
+                    claimsUrl: href,
+                    headline: "Possible match found",
+                    message: `Good news — we found a possible match (${params.matchScore}%) for "${params.lostItemTitle}": "${params.matchedItemTitle}". View it and submit a claim if it looks like yours.`,
+                },
+            });
+        } catch (error) {
+            console.error("Failed to send match-found notification email:", error);
+        }
     },
 };

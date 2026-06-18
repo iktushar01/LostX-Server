@@ -3,6 +3,7 @@ import { prisma } from "../../lib/prisma";
 import { ClaimStatus, FoundItemStatus, LostItemStatus, Role } from "../../lib/prisma-exports";
 import AppError from "../../errorHelpers/AppError";
 import { NotificationService } from "../notification/notification.service";
+import { verifyVerificationAnswer } from "../../utils/verification.util";
 
 type CreateClaimPayload = {
     foundItemId: string;
@@ -22,22 +23,19 @@ const claimInclude = {
             id: true,
             title: true,
             verificationQuestion: true,
-            verificationAnswer: true,
             status: true,
             category: true,
         },
     },
 } as const;
 
-const verifyAnswer = (submitted: string, expected: string | null | undefined): boolean => {
-    if (!expected?.trim()) return false;
-    return submitted.trim().toLowerCase() === expected.trim().toLowerCase();
-};
-
 export const ClaimService = {
     create: async (payload: CreateClaimPayload, userId: string) => {
         const [foundItem, lostItem] = await Promise.all([
-            prisma.foundItem.findUnique({ where: { id: payload.foundItemId } }),
+            prisma.foundItem.findUnique({
+                where: { id: payload.foundItemId },
+                include: { user: { select: { id: true, name: true, email: true } } },
+            }),
             prisma.lostItem.findUnique({ where: { id: payload.lostItemId } }),
         ]);
 
@@ -105,7 +103,10 @@ export const ClaimService = {
             );
         }
 
-        const verificationPassed = verifyAnswer(payload.answer, lostItem.verificationAnswer);
+        const verificationPassed = await verifyVerificationAnswer(
+            payload.answer,
+            lostItem.verificationAnswer,
+        );
 
         const claim = await prisma.claim.create({
             data: {
@@ -143,6 +144,22 @@ export const ClaimService = {
                 "Verification answer incorrect. Your claim was auto-rejected.",
             );
         }
+
+        await Promise.all([
+            NotificationService.notifyClaimPending({
+                claimId: claim.id,
+                claimantName: claim.user.name,
+                itemTitle: foundItem.title,
+            }),
+            NotificationService.notifyFinderNewClaim({
+                finderId: foundItem.userId,
+                finderEmail: foundItem.user.email,
+                finderName: foundItem.user.name,
+                itemTitle: foundItem.title,
+                claimantName: claim.user.name,
+                claimId: claim.id,
+            }),
+        ]);
 
         return claim;
     },

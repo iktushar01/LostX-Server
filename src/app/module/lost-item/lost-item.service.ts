@@ -5,6 +5,7 @@ import AppError from "../../errorHelpers/AppError";
 import { QueryBuilder } from "../../utils/QueryBuilder";
 import { MatchService } from "../match/match.service";
 import { EmbeddingService } from "../chatbot/embedding.service";
+import { hashVerificationAnswer } from "../../utils/verification.util";
 
 type CreateLostItemPayload = {
     title: string;
@@ -31,9 +32,12 @@ const omitVerificationAnswer = <T extends LostItemRecord>(item: T) => {
 
 export const LostItemService = {
     create: async (payload: CreateLostItemPayload, userId: string) => {
+        const hashedAnswer = await hashVerificationAnswer(payload.verificationAnswer);
+
         const item = await prisma.lostItem.create({
             data: {
                 ...payload,
+                verificationAnswer: hashedAnswer,
                 userId,
                 status: LostItemStatus.OPEN,
             },
@@ -156,9 +160,16 @@ export const LostItemService = {
             );
         }
 
+        const { verificationAnswer, ...restPayload } = payload;
+        const data: UpdateLostItemPayload = { ...restPayload };
+
+        if (verificationAnswer?.trim()) {
+            data.verificationAnswer = await hashVerificationAnswer(verificationAnswer);
+        }
+
         const updated = await prisma.lostItem.update({
             where: { id },
-            data: payload,
+            data,
             include: {
                 user: { select: { id: true, name: true, email: true } },
             },

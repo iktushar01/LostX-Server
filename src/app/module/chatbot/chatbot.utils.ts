@@ -28,6 +28,9 @@ export const buildItemEmbeddingText = (
 export const formatSimilarityPercent = (similarity: number): string =>
     `${Math.round(similarity * 100)}%`;
 
+/** Format unified match score (0–100) for display. */
+export const formatMatchScore = (score: number): string => `${Math.round(score)}%`;
+
 const STOP_WORDS = new Set([
     "a",
     "an",
@@ -171,7 +174,7 @@ export const buildRagContext = (matches: ChatbotMatch[]): string => {
     const found = matches.filter((m) => m.type === "FOUND");
 
     const formatLine = (match: ChatbotMatch) =>
-        `- [${formatSimilarityPercent(match.similarity)}] ${match.title} | ${match.location} | ${match.status} | category: ${match.category}`;
+        `- [${formatMatchScore(match.score)}] ${match.title} | ${match.location} | ${match.status} | category: ${match.category}`;
 
     const sections: string[] = [];
 
@@ -193,9 +196,14 @@ export const buildFallbackAnswer = (matches: ChatbotMatch[]): string => {
     }
 
     const top = matches[0]!;
-    const confidence = formatSimilarityPercent(top.similarity);
+    const confidence = formatMatchScore(top.score);
 
-    return `I found ${matches.length} possible match${matches.length === 1 ? "" : "es"} in our database. The closest is a ${top.type.toLowerCase()} item "${top.title}" near ${top.location} (${confidence} confidence). You can view it in Browse Items or submit a claim if it looks like yours.`;
+    const intentHint =
+        top.type === "FOUND"
+            ? " If it looks like yours, open the item and submit a claim (you'll need an open lost report with a verification answer)."
+            : " This is someone's lost report — contact may be coordinated after a claim is approved.";
+
+    return `I found ${matches.length} possible match${matches.length === 1 ? "" : "es"} in our database. The closest is a ${top.type.toLowerCase()} item "${top.title}" near ${top.location} (${confidence} match).${intentHint}`;
 };
 
 export const CHATBOT_SYSTEM_PROMPT = `You are LostX, a helpful university lost-and-found assistant.
@@ -204,9 +212,11 @@ Rules:
 - ONLY reference items listed in the retrieved context below.
 - NEVER invent items, locations, statuses, or owners.
 - If the context lists matching items, describe them and help the user — do NOT say nothing was found.
-- Lost items in the context are existing reports; found items may be what the user is looking for.
-- If no matches exist in context, say so and suggest reporting a lost item or browsing listings.
-- Mention similarity scores as confidence when available.
-- Suggest clear next steps: browse the item, submit a claim, or create a lost report.
+- Lost items in the context are existing reports from people searching; found items are in inventory and may be claimed.
+- If the user lost something, focus on FOUND items they can claim — not other people's lost reports.
+- If the user found something, focus on LOST reports from owners and suggest posting a found item.
+- If no matches exist in context, say so and suggest the right next step (report lost, post found, or browse).
+- Mention match scores as confidence when available.
+- To claim a found item, the user needs an open lost report with a verification question and answer.
 - Never reveal verification answers or private owner contact details.
 - Keep answers concise, friendly, and actionable.`;

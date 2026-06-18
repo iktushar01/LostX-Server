@@ -1,5 +1,6 @@
 import { prisma } from "../../lib/prisma";
 import { FoundItemStatus, ItemCategory, LostItemStatus } from "../../lib/prisma-exports";
+import { NotificationService } from "../notification/notification.service";
 
 export const MATCH_HIGH_THRESHOLD = 70;
 export const MATCH_SUGGESTION_MIN = 35;
@@ -223,12 +224,31 @@ export const MatchService = {
     },
 
     applyHighMatchStatus: async (lostItemId: string, matches: ScoredMatch[]) => {
-        const topScore = matches[0]?.score ?? 0;
-        if (topScore < MATCH_HIGH_THRESHOLD) return;
+        const topMatch = matches[0];
+        if (!topMatch || topMatch.score < MATCH_HIGH_THRESHOLD) return;
 
-        await prisma.lostItem.updateMany({
+        const result = await prisma.lostItem.updateMany({
             where: { id: lostItemId, status: LostItemStatus.OPEN },
             data: { status: LostItemStatus.MATCHED },
+        });
+
+        if (result.count === 0) return;
+
+        const lostItem = await prisma.lostItem.findUnique({
+            where: { id: lostItemId },
+            include: { user: { select: { id: true, email: true, name: true } } },
+        });
+
+        if (!lostItem) return;
+
+        await NotificationService.notifyMatchFound({
+            userId: lostItem.userId,
+            userEmail: lostItem.user.email,
+            userName: lostItem.user.name,
+            lostItemTitle: lostItem.title,
+            matchedItemTitle: topMatch.title,
+            matchScore: topMatch.score,
+            foundItemId: topMatch.id,
         });
     },
 };

@@ -1,6 +1,8 @@
 import { prisma } from "../../lib/prisma";
 import { envVars } from "../../../config/env";
 import type { ChatbotMatch, ChatbotResponse, ReindexResult } from "./chatbot.interface";
+import { detectSearchIntent, getIntentGuidance } from "./chatbot.intent";
+import { enrichMatchesWithRuleScores } from "./chatbot.match-enrichment";
 import {
     buildFallbackAnswer,
     buildRagContext,
@@ -15,49 +17,53 @@ const mergeMatches = (
     primary: ChatbotMatch[],
     secondary: ChatbotMatch[],
 ): ChatbotMatch[] => {
-    const seen = new Set<string>();
-    const merged: ChatbotMatch[] = [];
+    const byKey = new Map<string, ChatbotMatch>();
 
     for (const match of [...primary, ...secondary]) {
         const key = `${match.type}:${match.id}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        merged.push(match);
+        const existing = byKey.get(key);
+        if (!existing || match.similarity > existing.similarity) {
+            byKey.set(key, match);
+        }
     }
 
-    return merged
-        .sort((a, b) => b.similarity - a.similarity)
+    return [...byKey.values()]
+        .sort((a, b) => b.score - a.score || b.similarity - a.similarity)
         .slice(0, envVars.CHATBOT_TOP_K);
 };
 
 export const ChatbotService = {
     chat: async (message: string, userId?: string): Promise<ChatbotResponse> => {
-        // Step 1 — embed the user's natural-language query.
+        const scope = detectSearchIntent(message);
+
         const queryEmbedding = await OpenRouterService.createEmbedding(message);
 
-        // Step 2a — vector similarity search (items with embeddings).
-        const vectorMatches = await VectorSearchService.search(queryEmbedding);
+        const [vectorMatches, keywordMatches] = await Promise.all([
+            VectorSearchService.search(queryEmbedding, scope),
+            KeywordSearchService.search(message, scope),
+        ]);
 
-        // Step 2b — keyword fallback for items missing embeddings or weak vector scores.
-        const keywordMatches = await KeywordSearchService.search(message);
+        let matches = mergeMatches(vectorMatches, keywordMatches);
+        matches = await enrichMatchesWithRuleScores(matches, userId, scope.intent);
+        matches = matches
+            .sort((a, b) => b.score - a.score || b.similarity - a.similarity)
+            .slice(0, envVars.CHATBOT_TOP_K);
 
-        const matches = mergeMatches(vectorMatches, keywordMatches);
-
-        // Step 3 — assemble grouped RAG context from DB rows only.
         const ragContext = buildRagContext(matches);
+        const intentGuidance = getIntentGuidance(scope.intent);
 
         const meta = {
             matchCount: matches.length,
             topSimilarity: matches[0]?.similarity ?? null,
+            intent: scope.intent,
         };
 
-        // Step 4 — ask the LLM to answer using ONLY retrieved context.
         let answer: string;
 
         try {
             answer = await OpenRouterService.generateChatCompletion(
                 CHATBOT_SYSTEM_PROMPT,
-                `Retrieved database context:\n${ragContext}\n\nUser question:\n${message}`,
+                `User intent: ${scope.intent}\n${intentGuidance}\n\nRetrieved database context:\n${ragContext}\n\nUser question:\n${message}`,
             );
         } catch (error) {
             console.error("[ChatbotService] LLM failed, using retrieval-only fallback:", error);
@@ -66,7 +72,6 @@ export const ChatbotService = {
 
         const response: ChatbotResponse = { answer, matches, meta };
 
-        // Step 6 — persist chat history when the table is available.
         try {
             await prisma.chatLog.create({
                 data: {

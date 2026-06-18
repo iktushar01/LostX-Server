@@ -124,7 +124,7 @@ const loadEnvVariables = (): EnvConfig => {
         CHATBOT_TOP_K: Number(process.env.CHATBOT_TOP_K ?? 5),
         CHATBOT_MIN_SIMILARITY: Number(process.env.CHATBOT_MIN_SIMILARITY ?? 0.55),
         CHATBOT_EMBEDDING_DIMENSION: Number(
-            process.env.CHATBOT_EMBEDDING_DIMENSION ?? 1024,
+            process.env.CHATBOT_EMBEDDING_DIMENSION ?? 2048,
         ),
     }
 }

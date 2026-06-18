@@ -28,6 +28,136 @@ export const buildItemEmbeddingText = (
 export const formatSimilarityPercent = (similarity: number): string =>
     `${Math.round(similarity * 100)}%`;
 
+const STOP_WORDS = new Set([
+    "a",
+    "an",
+    "the",
+    "my",
+    "i",
+    "me",
+    "we",
+    "our",
+    "is",
+    "are",
+    "was",
+    "were",
+    "have",
+    "has",
+    "had",
+    "do",
+    "does",
+    "did",
+    "lost",
+    "found",
+    "item",
+    "items",
+    "near",
+    "at",
+    "in",
+    "on",
+    "by",
+    "for",
+    "to",
+    "of",
+    "and",
+    "or",
+    "with",
+    "yesterday",
+    "today",
+    "tomorrow",
+    "building",
+    "campus",
+    "show",
+    "find",
+    "search",
+    "looking",
+    "anyone",
+    "someone",
+    "help",
+]);
+
+/** Pull meaningful tokens from a natural-language chat query. */
+export const extractSearchTerms = (query: string): string[] => {
+    const normalized = query
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+    const terms = normalized
+        .split(" ")
+        .filter((word) => word.length > 1 && !STOP_WORDS.has(word));
+
+    return [...new Set(terms)];
+};
+
+/** Map common phrases to ItemCategory enum values for keyword matching. */
+export const phraseToCategoryHints = (query: string): string[] => {
+    const q = query.toLowerCase();
+    const hints: string[] = [];
+
+    if (/\bid\s*card\b|\bstudent\s*id\b/.test(q)) hints.push("ID_CARD");
+    if (/\bwallet\b/.test(q)) hints.push("WALLET");
+    if (/\bphone\b|\bmobile\b|\biphone\b|\bandroid\b/.test(q)) hints.push("PHONE");
+    if (/\blaptop\b|\bmacbook\b|\bcomputer\b/.test(q)) hints.push("LAPTOP");
+    if (/\bkeys?\b|\bkeychain\b/.test(q)) hints.push("KEYS");
+    if (/\bbag\b|\bbackpack\b|\bpurse\b/.test(q)) hints.push("BAG");
+    if (/\bbook\b|\bnotebook\b/.test(q)) hints.push("BOOK");
+
+    return hints;
+};
+
+/** Score how well an item row matches extracted search terms (0–1). */
+export const scoreKeywordMatch = (
+    item: {
+        title: string;
+        description: string;
+        category: string;
+        location: string;
+    },
+    terms: string[],
+    categoryHints: string[],
+    fullQuery: string,
+): number => {
+    if (terms.length === 0 && categoryHints.length === 0) {
+        return 0;
+    }
+
+    const title = item.title.toLowerCase();
+    const description = item.description.toLowerCase();
+    const location = item.location.toLowerCase();
+    const category = item.category.toLowerCase();
+    const query = fullQuery.toLowerCase();
+
+    let score = 0;
+
+    if (query.length > 2 && title.includes(query.trim())) {
+        score = Math.max(score, 0.98);
+    }
+
+    for (const hint of categoryHints) {
+        if (category === hint.toLowerCase()) {
+            score = Math.max(score, 0.92);
+        }
+    }
+
+    const matchedTerms = terms.filter(
+        (term) =>
+            title.includes(term) ||
+            description.includes(term) ||
+            location.includes(term) ||
+            category.includes(term.replace(/_/g, "")),
+    );
+
+    if (matchedTerms.length === terms.length && terms.length > 0) {
+        score = Math.max(score, 0.9);
+    } else if (matchedTerms.length > 0) {
+        score = Math.max(score, 0.55 + (matchedTerms.length / terms.length) * 0.3);
+    }
+
+    return Math.min(score, 0.99);
+};
+
 /**
  * Step 3 of RAG — group retrieved matches into a compact LLM context block.
  * Pure function for easy unit testing.
@@ -73,7 +203,9 @@ export const CHATBOT_SYSTEM_PROMPT = `You are LostX, a helpful university lost-a
 Rules:
 - ONLY reference items listed in the retrieved context below.
 - NEVER invent items, locations, statuses, or owners.
-- If no matches exist, say so and suggest reporting a lost item or browsing listings.
+- If the context lists matching items, describe them and help the user — do NOT say nothing was found.
+- Lost items in the context are existing reports; found items may be what the user is looking for.
+- If no matches exist in context, say so and suggest reporting a lost item or browsing listings.
 - Mention similarity scores as confidence when available.
 - Suggest clear next steps: browse the item, submit a claim, or create a lost report.
 - Never reveal verification answers or private owner contact details.

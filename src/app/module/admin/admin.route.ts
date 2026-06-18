@@ -8,4 +8,4 @@ const adminRoles = [Role.ADMIN, Role.SUPER_ADMIN] as const;
 
 router.get("/stats", checkAuth(...adminRoles), AdminController.getStats);
 
-export const AdminRoutes = router;
+export const AdminRoutes: Router = router;

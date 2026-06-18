@@ -12,7 +12,7 @@ let server: Server | undefined;
 let isBootstrapping = false;
 
 const globalForServer = globalThis as typeof globalThis & {
-  __lostxServer?: Server;
+  __lostxServer?: Server | undefined;
 };
 
 const closeServer = () =>

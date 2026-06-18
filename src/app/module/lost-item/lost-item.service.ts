@@ -1,13 +1,13 @@
 import { StatusCodes } from "http-status-codes";
 import { prisma } from "../../lib/prisma";
-import { LostItemStatus } from "../../lib/prisma-exports";
+import { ItemCategory, LostItemStatus } from "../../lib/prisma-exports";
 import AppError from "../../errorHelpers/AppError";
 import { QueryBuilder } from "../../utils/QueryBuilder";
 
 type CreateLostItemPayload = {
     title: string;
     description: string;
-    category: string;
+    category: ItemCategory;
     imageUrl?: string | null;
     location: string;
     dateLost: Date;
@@ -57,7 +57,7 @@ export const LostItemService = {
     },
 
     list: async (query: Record<string, unknown>) => {
-        const result = await new QueryBuilder(prisma.lostItem, query, {
+        const result = await new QueryBuilder(prisma.lostItem as import("../../interfaces/query.interface").PrismaModelDelegate, query, {
             searchableFields: ["title", "description", "location"],
             filterableFields: ["category", "status"],
         })

@@ -47,4 +47,4 @@ router.delete(
     LostItemController.remove,
 );
 
-export const LostItemRoutes = router;
+export const LostItemRoutes: Router = router;

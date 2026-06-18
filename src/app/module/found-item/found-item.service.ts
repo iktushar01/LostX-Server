@@ -1,13 +1,13 @@
 import { StatusCodes } from "http-status-codes";
 import { prisma } from "../../lib/prisma";
-import { FoundItemStatus } from "../../lib/prisma-exports";
+import { FoundItemStatus, ItemCategory } from "../../lib/prisma-exports";
 import AppError from "../../errorHelpers/AppError";
 import { QueryBuilder } from "../../utils/QueryBuilder";
 
 type CreateFoundItemPayload = {
     title: string;
     description: string;
-    category: string;
+    category: ItemCategory;
     imageUrl?: string | null;
     location: string;
     dateFound: Date;
@@ -50,7 +50,7 @@ export const FoundItemService = {
     },
 
     list: async (query: Record<string, unknown>) => {
-        return new QueryBuilder(prisma.foundItem, query, {
+        return new QueryBuilder(prisma.foundItem as import("../../interfaces/query.interface").PrismaModelDelegate, query, {
             searchableFields: ["title", "description", "location"],
             filterableFields: ["category", "status"],
         })

@@ -1,5 +1,5 @@
-import type { Prisma } from "../../../generated/prisma/index";
-import { Prisma as PrismaValue, Role, UserStatus } from "../../lib/prisma-exports";
+import { Prisma } from "../../../generated/prisma/index.js";
+import { Role, UserStatus } from "../../lib/prisma-exports";
 import AppError from "../../errorHelpers/AppError";
 import { auth } from "../../lib/auth";
 import { prisma } from "../../lib/prisma";
@@ -125,14 +125,16 @@ const registerClient = async (payload: IRegisterClient, fileBuffer?: Buffer, fil
             accessToken,
             refreshToken,
         };
-    } catch (error) {
+    } catch (error: unknown) {
         if (imageUrl) {
             await deleteFileFromCloudinary(imageUrl, "image").catch(() => {});
         }
 
         if (
-            error instanceof PrismaValue.PrismaClientKnownRequestError &&
-            error.code === "P2002"
+            typeof error === "object" &&
+            error !== null &&
+            "code" in error &&
+            (error as { code: string }).code === "P2002"
         ) {
             throw new AppError(
                 StatusCodes.CONFLICT,

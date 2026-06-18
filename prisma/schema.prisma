@@ -7,19 +7,63 @@ datasource db {
   provider = "postgresql"
 }
 
-model Verification {
-  id         String   @id
-  identifier String
-  value      String
-  expiresAt  DateTime
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+// ─── Auth (better-auth) ───────────────────────────────────────────────────────
 
-  @@index([identifier])
-  @@map("verification")
+enum Role {
+  USER
+  ADMIN
 }
 
-model account {
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  DELETED
+}
+
+model User {
+  id                  String     @id
+  name                String
+  email               String     @unique
+  emailVerified       Boolean    @default(false)
+  role                Role       @default(USER)
+  status              UserStatus @default(ACTIVE)
+  needPasswordChange  Boolean    @default(false)
+  isDeleted           Boolean    @default(false)
+  deletedAt           DateTime?
+  image               String?
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+  lastLogin           DateTime?
+  lastIpAddress       String?
+  lastUserAgent       String?
+  failedLoginAttempts Int        @default(0)
+  lockedUntil         DateTime?
+  accounts            Account[]
+  sessions            Session[]
+  lostItems           LostItem[]
+  foundItems          FoundItem[]
+  claims              Claim[]
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
   id                    String    @id
   accountId             String
   providerId            String
@@ -32,321 +76,116 @@ model account {
   scope                 String?
   password              String?
   createdAt             DateTime  @default(now())
-  updatedAt             DateTime
-  user                  user      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  updatedAt             DateTime  @updatedAt
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@map("account")
 }
 
-model admins {
-  id            String    @id
-  name          String
-  email         String    @unique
-  profilePhoto  String?
-  contactNumber String?
-  isDeleted     Boolean   @default(false)
-  deletedAt     DateTime?
-  userId        String    @unique
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime
-  user          user      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([email])
-  @@index([isDeleted, deletedAt])
-  @@index([isDeleted])
-}
-
-model ai_logs {
-  id        String   @id
-  input     String
-  output    Json
-  createdAt DateTime @default(now())
-
-  @@index([createdAt])
-}
-
-model analytics_events {
-  id        String   @id
-  type      String
-  metadata  Json?
-  createdAt DateTime @default(now())
-
-  @@index([createdAt])
-  @@index([type])
-}
-
-model audit_logs {
+model Verification {
   id         String   @id
-  adminId    String
-  action     String
-  targetId   String
-  targetType String
-  metadata   Json?
+  identifier String
+  value      String
+  expiresAt  DateTime
   createdAt  DateTime @default(now())
-  user       user     @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  updatedAt  DateTime @updatedAt
 
-  @@index([action])
-  @@index([adminId])
-  @@index([createdAt])
-  @@index([targetType])
+  @@index([identifier])
+  @@map("verification")
 }
 
-model clients {
-  id            String    @id
-  name          String
-  email         String    @unique
-  profilePhoto  String?
-  contactNumber String?
-  address       String?
-  gender        Gender?
-  isDeleted     Boolean   @default(false)
-  deletedAt     DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime
-  userId        String    @unique
-  user          user      @relation(fields: [userId], references: [id], onDelete: Cascade)
+// ─── Lost & Found ───────────────────────────────────────────────────────────
 
-  @@index([email])
-  @@index([isDeleted])
-}
-
-model emergency_contacts {
-  id        String   @id
-  userId    String
-  name      String
-  phone     String
-  relation  String?
-  createdAt DateTime @default(now())
-  user      user     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-}
-
-model location_histories {
-  id        String   @id
-  userId    String
-  latitude  Float
-  longitude Float
-  createdAt DateTime @default(now())
-  user      user     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([createdAt])
-  @@index([userId])
-}
-
-model match_logs {
-  id        String   @id
-  requestId String
-  donorId   String
-  score     Int
-  createdAt DateTime @default(now())
-  user      user     @relation(fields: [donorId], references: [id], onDelete: Cascade)
-  requests  requests @relation(fields: [requestId], references: [id], onDelete: Cascade)
-
-  @@index([donorId])
-  @@index([requestId])
-  @@index([score])
-}
-
-model messages {
-  id                             String   @id
-  requestId                      String
-  senderId                       String
-  receiverId                     String
-  content                        String
-  isRead                         Boolean  @default(false)
-  createdAt                      DateTime @default(now())
-  user_messages_receiverIdTouser user     @relation("messages_receiverIdTouser", fields: [receiverId], references: [id], onDelete: Cascade)
-  requests                       requests @relation(fields: [requestId], references: [id], onDelete: Cascade)
-  user_messages_senderIdTouser   user     @relation("messages_senderIdTouser", fields: [senderId], references: [id], onDelete: Cascade)
-
-  @@index([isRead])
-  @@index([receiverId])
-  @@index([requestId])
-  @@index([senderId])
-}
-
-model notifications {
-  id               String    @id
-  userId           String
-  title            String
-  body             String
-  isRead           Boolean   @default(false)
-  type             String
-  relatedRequestId String?
-  createdAt        DateTime  @default(now())
-  requests         requests? @relation(fields: [relatedRequestId], references: [id])
-  user             user      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([isRead])
-  @@index([relatedRequestId])
-  @@index([type])
-  @@index([userId])
-  @@index([userId, isRead])
-}
-
-model requests {
-  id               String          @id
-  userId           String
-  type             RequestType
-  bloodGroupNeeded BloodGroup?
-  location         String
-  urgency          Urgency
-  status           RequestStatus   @default(PENDING)
-  description      String
-  aiUrgencyScore   Int?
-  aiTags           String[]
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime
-  match_logs       match_logs[]
-  messages         messages[]
-  notifications    notifications[]
-  user             user            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  responses        responses[]
-
-  @@index([location])
-  @@index([status])
-  @@index([type])
-  @@index([urgency])
-}
-
-model responses {
-  id        String         @id
-  requestId String
-  donorId   String
-  status    ResponseStatus @default(PENDING)
-  note      String?
-  createdAt DateTime       @default(now())
-  updatedAt DateTime
-  user      user           @relation(fields: [donorId], references: [id], onDelete: Cascade)
-  requests  requests       @relation(fields: [requestId], references: [id], onDelete: Cascade)
-
-  @@unique([requestId, donorId])
-  @@index([donorId])
-  @@index([requestId])
-  @@index([status])
-}
-
-model session {
-  id        String   @id
-  expiresAt DateTime
-  token     String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime
-  ipAddress String?
-  userAgent String?
-  userId    String
-  user      user     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-}
-
-model sos_requests {
-  id        String   @id
-  userId    String
-  location  String
-  message   String?
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  user      user     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([createdAt])
-  @@index([isActive])
-  @@index([userId])
-}
-
-model user {
-  id                                 String               @id
-  name                               String
-  email                              String               @unique
-  emailVerified                      Boolean              @default(false)
-  role                               Role                 @default(USER)
-  status                             UserStatus           @default(ACTIVE)
-  needPasswordChange                 Boolean              @default(false)
-  isDeleted                          Boolean              @default(false)
-  deletedAt                          DateTime?
-  image                              String?
-  createdAt                          DateTime             @default(now())
-  updatedAt                          DateTime
-  lastLogin                          DateTime?
-  lastIpAddress                      String?
-  lastUserAgent                      String?
-  failedLoginAttempts                Int                  @default(0)
-  lockedUntil                        DateTime?
-  bloodGroup                         BloodGroup?
-  isAvailable                        Boolean              @default(false)
-  location                           String               @default("")
-  account                            account[]
-  admins                             admins?
-  audit_logs                         audit_logs[]
-  clients                            clients?
-  emergency_contacts                 emergency_contacts[]
-  location_histories                 location_histories[]
-  match_logs                         match_logs[]
-  messages_messages_receiverIdTouser messages[]           @relation("messages_receiverIdTouser")
-  messages_messages_senderIdTouser   messages[]           @relation("messages_senderIdTouser")
-  notifications                      notifications[]
-  requests                           requests[]
-  responses                          responses[]
-  session                            session[]
-  sos_requests                       sos_requests[]
-
-  @@index([bloodGroup])
-  @@index([isAvailable])
-  @@index([role])
-}
-
-enum UserStatus {
-  ACTIVE
-  INACTIVE
-  SUSPENDED
-  DELETED
-}
-
-enum BloodGroup {
-  A_POS
-  A_NEG
-  B_POS
-  B_NEG
-  AB_POS
-  AB_NEG
-  O_POS
-  O_NEG
-}
-
-enum Gender {
-  MALE
-  FEMALE
+enum ItemCategory {
+  ID_CARD
+  WALLET
+  PHONE
+  LAPTOP
+  KEYS
+  BAG
+  BOOK
   OTHER
 }
 
-enum RequestStatus {
+enum LostItemStatus {
+  OPEN
+  MATCHED
+  RECOVERED
+}
+
+enum FoundItemStatus {
+  AVAILABLE
+  CLAIMED
+  RETURNED
+}
+
+enum ClaimStatus {
   PENDING
-  ACCEPTED
-  RESOLVED
-  CANCELLED
+  APPROVED
+  REJECTED
 }
 
-enum RequestType {
-  BLOOD
-  ACCIDENT
-  HELP
+model LostItem {
+  id                   String         @id @default(cuid())
+  title                String
+  description          String
+  category             ItemCategory
+  imageUrl             String?
+  location             String
+  dateLost             DateTime
+  status               LostItemStatus @default(OPEN)
+  userId               String
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+  verificationQuestion String?
+  verificationAnswer     String?
+  user                 User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  claims               Claim[]
+
+  @@index([category])
+  @@index([status])
+  @@index([userId])
+  @@map("lost_items")
 }
 
-enum ResponseStatus {
-  PENDING
-  ACCEPTED
-  DECLINED
+model FoundItem {
+  id          String          @id @default(cuid())
+  title       String
+  description String
+  category    ItemCategory
+  imageUrl    String?
+  location    String
+  dateFound   DateTime
+  status      FoundItemStatus @default(AVAILABLE)
+  userId      String
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  claims      Claim[]
+
+  @@index([category])
+  @@index([status])
+  @@index([userId])
+  @@map("found_items")
 }
 
-enum Role {
-  USER
-  DONOR
-  ADMIN
-}
+model Claim {
+  id          String      @id @default(cuid())
+  foundItemId String
+  userId      String
+  answer      String
+  status      ClaimStatus @default(PENDING)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  lostItemId  String?
+  foundItem   FoundItem   @relation(fields: [foundItemId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lostItem    LostItem?   @relation(fields: [lostItemId], references: [id], onDelete: SetNull)
 
-enum Urgency {
-  LOW
-  MEDIUM
-  CRITICAL
+  @@index([foundItemId])
+  @@index([userId])
+  @@index([status])
+  @@index([lostItemId])
+  @@map("claims")
 }

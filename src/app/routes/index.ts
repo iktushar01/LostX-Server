@@ -1,4 +1,4 @@
-import express from "express";
+import express, { type Router } from "express";
 import { AuthRoute } from "../module/auth/auth.route";
 import { UserRoutes } from "../module/user/user.route";
 import { LostItemRoutes } from "../module/lost-item/lost-item.route";
@@ -17,4 +17,4 @@ router.use("/claims", ClaimRoutes);
 router.use("/dashboard", DashboardRoutes);
 router.use("/admin", AdminRoutes);
 
-export const IndexRoute = router;
+export const IndexRoute: Router = router;

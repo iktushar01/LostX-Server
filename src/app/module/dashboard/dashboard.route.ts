@@ -8,4 +8,4 @@ const allRoles = [Role.CLIENT, Role.ADMIN, Role.SUPER_ADMIN] as const;
 
 router.get("/stats", checkAuth(...allRoles), DashboardController.getStats);
 
-export const DashboardRoutes = router;
+export const DashboardRoutes: Router = router;

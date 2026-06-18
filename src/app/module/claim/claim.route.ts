@@ -47,4 +47,4 @@ router.patch(
     ClaimController.updateStatus,
 );
 
-export const ClaimRoutes = router;
+export const ClaimRoutes: Router = router;

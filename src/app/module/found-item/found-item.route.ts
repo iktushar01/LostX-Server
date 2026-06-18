@@ -41,4 +41,4 @@ router.delete(
     FoundItemController.remove,
 );
 
-export const FoundItemRoutes = router;
+export const FoundItemRoutes: Router = router;

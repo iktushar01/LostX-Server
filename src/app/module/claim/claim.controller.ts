@@ -62,7 +62,12 @@ const listAll = catchAsync(async (req: Request, res: Response) => {
 });
 
 const getById = catchAsync(async (req: Request, res: Response) => {
-    const result = await ClaimService.getById(req.params.id as string);
+    const user = req.user as IRequestUser;
+    const result = await ClaimService.getById(
+        req.params.id as string,
+        user.userId,
+        user.role,
+    );
 
     sendResponse(res, {
         statusCode: StatusCodes.OK,

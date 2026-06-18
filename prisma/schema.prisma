@@ -44,6 +44,8 @@ model User {
   lostItems           LostItem[]
   foundItems          FoundItem[]
   claims              Claim[]
+  claimMessages       ClaimMessage[]
+  notifications       Notification[]
 
   @@map("user")
 }
@@ -126,6 +128,31 @@ enum ClaimStatus {
   REJECTED
 }
 
+enum NotificationType {
+  CLAIM_APPROVED
+  CLAIM_REJECTED
+  CLAIM_PENDING
+  ITEM_RETURNED
+  MATCH_FOUND
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  body      String
+  href      String?
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, isRead])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
 model LostItem {
   id                   String         @id @default(cuid())
   title                String
@@ -135,6 +162,7 @@ model LostItem {
   location             String
   dateLost             DateTime
   status               LostItemStatus @default(OPEN)
+  isFeatured           Boolean        @default(false)
   userId               String
   createdAt            DateTime       @default(now())
   updatedAt            DateTime       @updatedAt
@@ -158,6 +186,7 @@ model FoundItem {
   location    String
   dateFound   DateTime
   status      FoundItemStatus @default(AVAILABLE)
+  isFeatured  Boolean         @default(false)
   userId      String
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
@@ -182,10 +211,26 @@ model Claim {
   foundItem   FoundItem   @relation(fields: [foundItemId], references: [id], onDelete: Cascade)
   user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   lostItem    LostItem?   @relation(fields: [lostItemId], references: [id], onDelete: SetNull)
+  messages    ClaimMessage[]
 
   @@index([foundItemId])
   @@index([userId])
   @@index([status])
   @@index([lostItemId])
   @@map("claims")
+}
+
+model ClaimMessage {
+  id        String   @id @default(cuid())
+  claimId   String
+  senderId  String
+  content   String
+  createdAt DateTime @default(now())
+  claim     Claim    @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  sender    User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([claimId])
+  @@index([senderId])
+  @@index([createdAt])
+  @@map("claim_messages")
 }

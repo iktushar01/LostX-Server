@@ -2,6 +2,7 @@ import { StatusCodes } from "http-status-codes";
 import { prisma } from "../../lib/prisma";
 import { ClaimStatus, FoundItemStatus, LostItemStatus, Role } from "../../lib/prisma-exports";
 import AppError from "../../errorHelpers/AppError";
+import { NotificationService } from "../notification/notification.service";
 
 type CreateClaimPayload = {
     foundItemId: string;
@@ -28,6 +29,11 @@ const claimInclude = {
     },
 } as const;
 
+const verifyAnswer = (submitted: string, expected: string | null | undefined): boolean => {
+    if (!expected?.trim()) return false;
+    return submitted.trim().toLowerCase() === expected.trim().toLowerCase();
+};
+
 export const ClaimService = {
     create: async (payload: CreateClaimPayload, userId: string) => {
         const [foundItem, lostItem] = await Promise.all([
@@ -50,7 +56,7 @@ export const ClaimService = {
             );
         }
 
-        if (lostItem.status !== LostItemStatus.OPEN) {
+        if (lostItem.status !== LostItemStatus.OPEN && lostItem.status !== LostItemStatus.MATCHED) {
             throw new AppError(
                 StatusCodes.BAD_REQUEST,
                 "This lost item report is no longer open for claims",
@@ -78,6 +84,13 @@ export const ClaimService = {
             );
         }
 
+        if (!lostItem.verificationAnswer?.trim()) {
+            throw new AppError(
+                StatusCodes.BAD_REQUEST,
+                "Selected lost item is missing a verification answer",
+            );
+        }
+
         const existingClaim = await prisma.claim.findFirst({
             where: {
                 foundItemId: payload.foundItemId,
@@ -92,13 +105,15 @@ export const ClaimService = {
             );
         }
 
-        return prisma.claim.create({
+        const verificationPassed = verifyAnswer(payload.answer, lostItem.verificationAnswer);
+
+        const claim = await prisma.claim.create({
             data: {
                 foundItemId: payload.foundItemId,
                 lostItemId: payload.lostItemId,
                 userId,
                 answer: payload.answer,
-                status: ClaimStatus.PENDING,
+                status: verificationPassed ? ClaimStatus.PENDING : ClaimStatus.REJECTED,
             },
             include: {
                 foundItem: true,
@@ -113,6 +128,23 @@ export const ClaimService = {
                 user: { select: { id: true, name: true, email: true } },
             },
         });
+
+        if (!verificationPassed) {
+            await NotificationService.notifyClaimRejected({
+                userId,
+                userEmail: claim.user.email,
+                userName: claim.user.name,
+                itemTitle: foundItem.title,
+                reason: "Your verification answer was incorrect. The claim was auto-rejected.",
+            });
+
+            throw new AppError(
+                StatusCodes.UNPROCESSABLE_ENTITY,
+                "Verification answer incorrect. Your claim was auto-rejected.",
+            );
+        }
+
+        return claim;
     },
 
     listMine: async (userId: string) => {
@@ -160,7 +192,7 @@ export const ClaimService = {
         });
     },
 
-    getById: async (claimId: string) => {
+    getById: async (claimId: string, requesterUserId: string, requesterRole: string) => {
         const claim = await prisma.claim.findUnique({
             where: { id: claimId },
             include: claimInclude,
@@ -168,6 +200,13 @@ export const ClaimService = {
 
         if (!claim) {
             throw new AppError(StatusCodes.NOT_FOUND, "Claim not found");
+        }
+
+        const isAdmin = requesterRole === Role.ADMIN || requesterRole === Role.SUPER_ADMIN;
+        const isParticipant =
+            claim.userId === requesterUserId || claim.foundItem.userId === requesterUserId;
+        if (!isAdmin && !isParticipant) {
+            throw new AppError(StatusCodes.FORBIDDEN, "You cannot access this claim");
         }
 
         return claim;
@@ -184,7 +223,11 @@ export const ClaimService = {
 
         const claim = await prisma.claim.findUnique({
             where: { id: claimId },
-            include: { foundItem: true, lostItem: true },
+            include: {
+                foundItem: true,
+                lostItem: true,
+                user: { select: { id: true, name: true, email: true } },
+            },
         });
 
         if (!claim) {
@@ -198,8 +241,8 @@ export const ClaimService = {
             );
         }
 
-        return prisma.$transaction(async (tx) => {
-            const updatedClaim = await tx.claim.update({
+        const updatedClaim = await prisma.$transaction(async (tx) => {
+            const result = await tx.claim.update({
                 where: { id: claimId },
                 data: { status },
                 include: claimInclude,
@@ -218,6 +261,18 @@ export const ClaimService = {
                     });
                 }
 
+                const otherPending = await tx.claim.findMany({
+                    where: {
+                        foundItemId: claim.foundItemId,
+                        id: { not: claimId },
+                        status: ClaimStatus.PENDING,
+                    },
+                    include: {
+                        user: { select: { id: true, name: true, email: true } },
+                        foundItem: { select: { title: true } },
+                    },
+                });
+
                 await tx.claim.updateMany({
                     where: {
                         foundItemId: claim.foundItemId,
@@ -226,9 +281,39 @@ export const ClaimService = {
                     },
                     data: { status: ClaimStatus.REJECTED },
                 });
+
+                for (const other of otherPending) {
+                    await NotificationService.notifyClaimRejected({
+                        userId: other.userId,
+                        userEmail: other.user.email,
+                        userName: other.user.name,
+                        itemTitle: other.foundItem.title,
+                        reason: "Another claim was approved for this item.",
+                    });
+                }
             }
 
-            return updatedClaim;
+            return result;
         });
+
+        if (status === ClaimStatus.APPROVED) {
+            await NotificationService.notifyClaimApproved({
+                userId: claim.userId,
+                userEmail: claim.user.email,
+                userName: claim.user.name,
+                itemTitle: claim.foundItem.title,
+                claimId: claim.id,
+            });
+        } else {
+            await NotificationService.notifyClaimRejected({
+                userId: claim.userId,
+                userEmail: claim.user.email,
+                userName: claim.user.name,
+                itemTitle: claim.foundItem.title,
+                reason: "Your claim was reviewed and rejected by an admin.",
+            });
+        }
+
+        return updatedClaim;
     },
 };

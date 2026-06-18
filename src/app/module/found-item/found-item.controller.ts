@@ -71,4 +71,48 @@ const remove = catchAsync(async (req: Request, res: Response) => {
     });
 });
 
-export const FoundItemController = { create, getById, list, listMine, remove };
+const markReturned = catchAsync(async (req: Request, res: Response) => {
+    const user = req.user as IRequestUser;
+    const result = await FoundItemService.markReturned(
+        req.params.id as string,
+        user.userId,
+        user.role,
+    );
+
+    sendResponse(res, {
+        statusCode: StatusCodes.OK,
+        success: true,
+        message: "Item marked as returned",
+        data: result,
+    });
+});
+
+const update = catchAsync(async (req: Request, res: Response) => {
+    const user = req.user as IRequestUser;
+    const imageUrl = await getUploadedImageUrl(req);
+    const result = await FoundItemService.updateOwn(
+        req.params.id as string,
+        user.userId,
+        {
+            ...req.body,
+            ...(imageUrl ? { imageUrl } : {}),
+        },
+    );
+
+    sendResponse(res, {
+        statusCode: StatusCodes.OK,
+        success: true,
+        message: "Found item updated",
+        data: result,
+    });
+});
+
+export const FoundItemController = {
+    create,
+    getById,
+    list,
+    listMine,
+    remove,
+    markReturned,
+    update,
+};

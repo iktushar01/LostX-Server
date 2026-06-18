@@ -11,6 +11,20 @@ export const createLostItemZodSchema = z.object({
     verificationAnswer: z.string().min(2).max(500).trim(),
 });
 
+export const updateLostItemZodSchema = z
+    .object({
+        title: z.string().min(2).max(120).trim().optional(),
+        description: z.string().min(5).max(2000).trim().optional(),
+        category: z.nativeEnum(ItemCategory).optional(),
+        location: z.string().min(2).max(200).trim().optional(),
+        dateLost: z.coerce.date().optional(),
+        verificationQuestion: z.string().min(5).max(500).trim().optional(),
+        verificationAnswer: z.string().min(2).max(500).trim().optional(),
+    })
+    .refine((data) => Object.keys(data).length > 0, {
+        message: "At least one field must be provided",
+    });
+
 export const listLostItemsQuerySchema = z.object({
     searchTerm: z.string().optional(),
     category: z.nativeEnum(ItemCategory).optional(),
@@ -22,5 +36,5 @@ export const listLostItemsQuerySchema = z.object({
 });
 
 export const lostItemIdParamSchema = z.object({
-    id: z.string().uuid(),
+    id: z.string().min(1),
 });

@@ -6,6 +6,8 @@ import { FoundItemRoutes } from "../module/found-item/found-item.route";
 import { ClaimRoutes } from "../module/claim/claim.route";
 import { AdminRoutes } from "../module/admin/admin.route";
 import { DashboardRoutes } from "../module/dashboard/dashboard.route";
+import { MatchRoutes } from "../module/match/match.route";
+import { NotificationRoutes } from "../module/notification/notification.route";
 
 const router = express.Router();
 
@@ -14,6 +16,8 @@ router.use("/users", UserRoutes);
 router.use("/lost-items", LostItemRoutes);
 router.use("/found-items", FoundItemRoutes);
 router.use("/claims", ClaimRoutes);
+router.use("/matches", MatchRoutes);
+router.use("/notifications", NotificationRoutes);
 router.use("/dashboard", DashboardRoutes);
 router.use("/admin", AdminRoutes);
 

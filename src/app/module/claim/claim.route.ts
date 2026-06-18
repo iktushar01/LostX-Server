@@ -2,7 +2,12 @@ import { Router } from "express";
 import { Role } from "../../lib/prisma-exports";
 import { checkAuth } from "../../middleware/checkAuth";
 import { validateRequest } from "../../middleware/validateRequest";
+import { ClaimMessageController } from "../claim-message/claim-message.controller";
 import { ClaimController } from "./claim.controller";
+import {
+    claimMessageParamSchema,
+    createClaimMessageZodSchema,
+} from "../claim-message/claim-message.validation";
 import {
     claimIdParamSchema,
     createClaimZodSchema,
@@ -33,8 +38,23 @@ router.get(
 );
 
 router.get(
+    "/:id/messages",
+    checkAuth(...allRoles),
+    validateRequest(claimMessageParamSchema, "params"),
+    ClaimMessageController.listByClaim,
+);
+
+router.post(
+    "/:id/messages",
+    checkAuth(...allRoles),
+    validateRequest(claimMessageParamSchema, "params"),
+    validateRequest(createClaimMessageZodSchema),
+    ClaimMessageController.create,
+);
+
+router.get(
     "/:id",
-    checkAuth(...adminRoles),
+    checkAuth(...allRoles),
     validateRequest(claimIdParamSchema, "params"),
     ClaimController.getById,
 );

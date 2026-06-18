@@ -33,6 +33,9 @@ export type FoundItemStatus = (typeof FoundItemStatus)[keyof typeof FoundItemSta
 export const ClaimStatus = prismaModule.ClaimStatus;
 export type ClaimStatus = (typeof ClaimStatus)[keyof typeof ClaimStatus];
 
+export const NotificationType = prismaModule.NotificationType;
+export type NotificationType = (typeof NotificationType)[keyof typeof NotificationType];
+
 /** Profile field only — not stored on the user model */
 export const Gender = {
   MALE: "MALE",

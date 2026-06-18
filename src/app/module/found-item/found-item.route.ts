@@ -7,6 +7,7 @@ import { FoundItemController } from "./found-item.controller";
 import {
     createFoundItemZodSchema,
     foundItemIdParamSchema,
+    updateFoundItemZodSchema,
 } from "./found-item.validation";
 
 const router = Router();
@@ -39,6 +40,22 @@ router.delete(
     checkAuth(...allRoles),
     validateRequest(foundItemIdParamSchema, "params"),
     FoundItemController.remove,
+);
+
+router.patch(
+    "/:id/return",
+    checkAuth(...allRoles),
+    validateRequest(foundItemIdParamSchema, "params"),
+    FoundItemController.markReturned,
+);
+
+router.patch(
+    "/:id",
+    checkAuth(...allRoles),
+    memoryUpload.single("image"),
+    validateRequest(foundItemIdParamSchema, "params"),
+    validateRequest(updateFoundItemZodSchema),
+    FoundItemController.update,
 );
 
 export const FoundItemRoutes: Router = router;

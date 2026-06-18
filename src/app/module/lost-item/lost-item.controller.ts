@@ -83,4 +83,32 @@ const remove = catchAsync(async (req: Request, res: Response) => {
     });
 });
 
-export const LostItemController = { create, getById, list, listMine, listMineForClaim, remove };
+const update = catchAsync(async (req: Request, res: Response) => {
+    const user = req.user as IRequestUser;
+    const imageUrl = await getUploadedImageUrl(req);
+    const result = await LostItemService.updateOwn(
+        req.params.id as string,
+        user.userId,
+        {
+            ...req.body,
+            ...(imageUrl ? { imageUrl } : {}),
+        },
+    );
+
+    sendResponse(res, {
+        statusCode: StatusCodes.OK,
+        success: true,
+        message: "Lost item updated",
+        data: result,
+    });
+});
+
+export const LostItemController = {
+    create,
+    getById,
+    list,
+    listMine,
+    listMineForClaim,
+    remove,
+    update,
+};

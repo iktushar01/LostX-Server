@@ -15,4 +15,54 @@ const getStats = catchAsync(async (_req: Request, res: Response) => {
     });
 });
 
-export const AdminController = { getStats };
+const listItems = catchAsync(async (req: Request, res: Response) => {
+    const type = req.query.type === "found" ? "found" : "lost";
+    const search = typeof req.query.search === "string" ? req.query.search : undefined;
+    const status = typeof req.query.status === "string" ? req.query.status : undefined;
+    const featured =
+        req.query.featured === "true" ? true : req.query.featured === "false" ? false : undefined;
+
+    const result = await AdminService.listItems({
+        type,
+        ...(search ? { search } : {}),
+        ...(status ? { status } : {}),
+        ...(featured === undefined ? {} : { featured }),
+    });
+
+    sendResponse(res, {
+        statusCode: StatusCodes.OK,
+        success: true,
+        message: "Admin items retrieved",
+        data: result,
+    });
+});
+
+const setItemFeatured = catchAsync(async (req: Request, res: Response) => {
+    const type = req.params.type === "found" ? "found" : "lost";
+    const result = await AdminService.setItemFeatured(
+        type,
+        req.params.id as string,
+        Boolean(req.body.isFeatured),
+    );
+
+    sendResponse(res, {
+        statusCode: StatusCodes.OK,
+        success: true,
+        message: "Item feature state updated",
+        data: result,
+    });
+});
+
+const deleteItem = catchAsync(async (req: Request, res: Response) => {
+    const type = req.params.type === "found" ? "found" : "lost";
+    const result = await AdminService.deleteItem(type, req.params.id as string);
+
+    sendResponse(res, {
+        statusCode: StatusCodes.OK,
+        success: true,
+        message: "Item removed by admin",
+        data: result,
+    });
+});
+
+export const AdminController = { getStats, listItems, setItemFeatured, deleteItem };

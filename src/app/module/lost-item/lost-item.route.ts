@@ -7,6 +7,7 @@ import { LostItemController } from "./lost-item.controller";
 import {
     createLostItemZodSchema,
     lostItemIdParamSchema,
+    updateLostItemZodSchema,
 } from "./lost-item.validation";
 
 const router = Router();
@@ -45,6 +46,15 @@ router.delete(
     checkAuth(...allRoles),
     validateRequest(lostItemIdParamSchema, "params"),
     LostItemController.remove,
+);
+
+router.patch(
+    "/:id",
+    checkAuth(...allRoles),
+    memoryUpload.single("image"),
+    validateRequest(lostItemIdParamSchema, "params"),
+    validateRequest(updateLostItemZodSchema),
+    LostItemController.update,
 );
 
 export const LostItemRoutes: Router = router;

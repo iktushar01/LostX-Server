@@ -3,6 +3,7 @@ import { prisma } from "../../lib/prisma";
 import { ItemCategory, LostItemStatus } from "../../lib/prisma-exports";
 import AppError from "../../errorHelpers/AppError";
 import { QueryBuilder } from "../../utils/QueryBuilder";
+import { MatchService } from "../match/match.service";
 
 type CreateLostItemPayload = {
     title: string;
@@ -14,6 +15,8 @@ type CreateLostItemPayload = {
     verificationQuestion: string;
     verificationAnswer: string;
 };
+
+type UpdateLostItemPayload = Partial<CreateLostItemPayload>;
 
 type LostItemRecord = {
     verificationAnswer?: string | null;
@@ -53,13 +56,15 @@ export const LostItemService = {
             throw new AppError(StatusCodes.NOT_FOUND, "Lost item not found");
         }
 
-        return omitVerificationAnswer(item);
+        const suggestedMatches = await MatchService.getSuggestionsForLostItem(id);
+
+        return { ...omitVerificationAnswer(item), suggestedMatches };
     },
 
     list: async (query: Record<string, unknown>) => {
         const result = await new QueryBuilder(prisma.lostItem as import("../../interfaces/query.interface").PrismaModelDelegate, query, {
             searchableFields: ["title", "description", "location"],
-            filterableFields: ["category", "status"],
+            filterableFields: ["category", "status", "isFeatured"],
         })
             .search()
             .filter()
@@ -93,7 +98,7 @@ export const LostItemService = {
         return prisma.lostItem.findMany({
             where: {
                 userId,
-                status: LostItemStatus.OPEN,
+                status: { in: [LostItemStatus.OPEN, LostItemStatus.MATCHED] },
                 verificationQuestion: { not: null },
             },
             orderBy: { createdAt: "desc" },
@@ -120,5 +125,42 @@ export const LostItemService = {
 
         await prisma.lostItem.delete({ where: { id } });
         return { id };
+    },
+
+    updateOwn: async (
+        id: string,
+        userId: string,
+        payload: UpdateLostItemPayload,
+    ) => {
+        const item = await prisma.lostItem.findUnique({ where: { id } });
+
+        if (!item) {
+            throw new AppError(StatusCodes.NOT_FOUND, "Lost item not found");
+        }
+
+        if (item.userId !== userId) {
+            throw new AppError(StatusCodes.FORBIDDEN, "You can only edit your own lost items");
+        }
+
+        const claimCount = await prisma.claim.count({
+            where: { lostItemId: id },
+        });
+
+        if (claimCount > 0) {
+            throw new AppError(
+                StatusCodes.BAD_REQUEST,
+                "You cannot edit this report because claims already exist for it",
+            );
+        }
+
+        const updated = await prisma.lostItem.update({
+            where: { id },
+            data: payload,
+            include: {
+                user: { select: { id: true, name: true, email: true } },
+            },
+        });
+
+        return omitVerificationAnswer(updated);
     },
 };

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Claim Rejected</title>
+</head>
+<body style="margin:0;padding:0;background:#fafafa;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#fafafa;padding:48px 16px;">
+    <tr>
+      <td align="center">
+        <table width="100%" style="max-width:420px;background:#fff;border:1px solid #e4e4e7;border-radius:12px;">
+          <tr>
+            <td style="padding:32px;">
+              <p style="margin:0 0 8px;font-size:15px;font-weight:600;color:#09090b;">LostX</p>
+              <h1 style="margin:0 0 16px;font-size:22px;color:#09090b;">Claim update</h1>
+              <p style="margin:0 0 12px;color:#52525b;">Hi <%= name %>,</p>
+              <p style="margin:0 0 12px;color:#52525b;line-height:1.6;">
+                Your claim for "<%= itemTitle %>" was not approved.
+              </p>
+              <p style="margin:0 0 20px;color:#71717a;line-height:1.6;"><%= reason %></p>
+              <a href="<%= claimsUrl %>" style="display:inline-block;background:#18181b;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px;font-weight:600;">View your claims</a>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

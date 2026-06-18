@@ -46,6 +46,7 @@ model User {
   claims              Claim[]
   claimMessages       ClaimMessage[]
   notifications       Notification[]
+  chatLogs            ChatLog[]
 
   @@map("user")
 }
@@ -167,7 +168,8 @@ model LostItem {
   createdAt            DateTime       @default(now())
   updatedAt            DateTime       @updatedAt
   verificationQuestion String?
-  verificationAnswer     String?
+  verificationAnswer   String?
+  embedding            Unsupported("vector")?
   user                 User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   claims               Claim[]
 
@@ -187,6 +189,7 @@ model FoundItem {
   dateFound   DateTime
   status      FoundItemStatus @default(AVAILABLE)
   isFeatured  Boolean         @default(false)
+  embedding   Unsupported("vector")?
   userId      String
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
@@ -233,4 +236,18 @@ model ClaimMessage {
   @@index([senderId])
   @@index([createdAt])
   @@map("claim_messages")
+}
+
+model ChatLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  message   String
+  answer    String
+  matches   Json
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("chat_logs")
 }

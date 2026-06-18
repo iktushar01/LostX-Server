@@ -9,6 +9,8 @@ import { DashboardRoutes } from "../module/dashboard/dashboard.route";
 import { MatchRoutes } from "../module/match/match.route";
 import { NotificationRoutes } from "../module/notification/notification.route";
 
+import { ChatbotRoutes } from "../module/chatbot/chatbot.route";
+
 const router = express.Router();
 
 router.use("/auth", AuthRoute);
@@ -18,6 +20,7 @@ router.use("/found-items", FoundItemRoutes);
 router.use("/claims", ClaimRoutes);
 router.use("/matches", MatchRoutes);
 router.use("/notifications", NotificationRoutes);
+router.use("/chatbot", ChatbotRoutes);
 router.use("/dashboard", DashboardRoutes);
 router.use("/admin", AdminRoutes);
 

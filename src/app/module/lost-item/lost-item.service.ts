@@ -4,6 +4,7 @@ import { ItemCategory, LostItemStatus } from "../../lib/prisma-exports";
 import AppError from "../../errorHelpers/AppError";
 import { QueryBuilder } from "../../utils/QueryBuilder";
 import { MatchService } from "../match/match.service";
+import { EmbeddingService } from "../chatbot/embedding.service";
 
 type CreateLostItemPayload = {
     title: string;
@@ -40,6 +41,8 @@ export const LostItemService = {
                 user: { select: { id: true, name: true, email: true } },
             },
         });
+
+        EmbeddingService.scheduleLostItemEmbedding(item.id);
 
         return omitVerificationAnswer(item);
     },
@@ -160,6 +163,8 @@ export const LostItemService = {
                 user: { select: { id: true, name: true, email: true } },
             },
         });
+
+        EmbeddingService.scheduleLostItemEmbedding(updated.id);
 
         return omitVerificationAnswer(updated);
     },

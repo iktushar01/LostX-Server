@@ -5,6 +5,7 @@ import AppError from "../../errorHelpers/AppError";
 import { QueryBuilder } from "../../utils/QueryBuilder";
 import { NotificationService } from "../notification/notification.service";
 import { MatchService } from "../match/match.service";
+import { EmbeddingService } from "../chatbot/embedding.service";
 
 type CreateFoundItemPayload = {
     title: string;
@@ -19,7 +20,7 @@ type UpdateFoundItemPayload = Partial<CreateFoundItemPayload>;
 
 export const FoundItemService = {
     create: async (payload: CreateFoundItemPayload, userId: string) => {
-        return prisma.foundItem.create({
+        const item = await prisma.foundItem.create({
             data: {
                 ...payload,
                 userId,
@@ -29,6 +30,10 @@ export const FoundItemService = {
                 user: { select: { id: true, name: true, email: true } },
             },
         });
+
+        EmbeddingService.scheduleFoundItemEmbedding(item.id);
+
+        return item;
     },
 
     getById: async (id: string) => {
@@ -122,13 +127,17 @@ export const FoundItemService = {
             );
         }
 
-        return prisma.foundItem.update({
+        const updated = await prisma.foundItem.update({
             where: { id },
             data: payload,
             include: {
                 user: { select: { id: true, name: true, email: true } },
             },
         });
+
+        EmbeddingService.scheduleFoundItemEmbedding(updated.id);
+
+        return updated;
     },
 
     markReturned: async (id: string, userId: string, userRole: string) => {

@@ -43,8 +43,10 @@ interface EnvConfig {
     CHATBOT_MIN_SIMILARITY: number;
     CHATBOT_EMBEDDING_DIMENSION: number;
     AUTO_APPROVE_MATCH_THRESHOLD: number;
+    AI_AUTO_APPROVE_CONFIDENCE: number;
     ITEM_EXPIRY_DAYS: number;
     DUPLICATE_REPORT_WINDOW_HOURS: number;
+    ENCRYPTION_KEY: string;
 }
 
 const requiredEnvVariables = [
@@ -132,10 +134,14 @@ const loadEnvVariables = (): EnvConfig => {
         AUTO_APPROVE_MATCH_THRESHOLD: Number(
             process.env.AUTO_APPROVE_MATCH_THRESHOLD ?? 85,
         ),
+        AI_AUTO_APPROVE_CONFIDENCE: Number(
+            process.env.AI_AUTO_APPROVE_CONFIDENCE ?? 80,
+        ),
         ITEM_EXPIRY_DAYS: Number(process.env.ITEM_EXPIRY_DAYS ?? 90),
         DUPLICATE_REPORT_WINDOW_HOURS: Number(
             process.env.DUPLICATE_REPORT_WINDOW_HOURS ?? 24,
         ),
+        ENCRYPTION_KEY: process.env.ENCRYPTION_KEY ?? "",
     }
 }
 

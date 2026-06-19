@@ -6,6 +6,44 @@ import { sendResponse } from "../../shared/sendResponse";
 import { IRequestUser } from "../auth/auth.interface";
 import { ClaimService } from "./claim.service";
 
+const generateVerificationQuestionsPreview = catchAsync(async (req: Request, res: Response) => {
+    const user = req.user as IRequestUser;
+
+    const result = await ClaimService.generateVerificationQuestionsPreview(
+        req.body.foundItemId,
+        {
+            title: req.body.title,
+            description: req.body.description,
+            privateDescription: req.body.privateDescription,
+        },
+        user.userId,
+    );
+
+    sendResponse(res, {
+        statusCode: StatusCodes.OK,
+        success: true,
+        message: "Verification questions generated",
+        data: result,
+    });
+});
+
+const generateVerificationQuestions = catchAsync(async (req: Request, res: Response) => {
+    const user = req.user as IRequestUser;
+
+    const result = await ClaimService.generateVerificationQuestions(
+        req.body.foundItemId,
+        req.body.lostItemId,
+        user.userId,
+    );
+
+    sendResponse(res, {
+        statusCode: StatusCodes.OK,
+        success: true,
+        message: "Verification questions generated",
+        data: result,
+    });
+});
+
 const create = catchAsync(async (req: Request, res: Response) => {
     const user = req.user as IRequestUser;
 
@@ -130,6 +168,8 @@ const updateStatus = catchAsync(async (req: Request, res: Response) => {
 });
 
 export const ClaimController = {
+    generateVerificationQuestionsPreview,
+    generateVerificationQuestions,
     create,
     createQuick,
     confirmReceived,

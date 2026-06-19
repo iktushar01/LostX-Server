@@ -1,26 +1,38 @@
 import { z } from "zod";
 import { ItemCategory } from "../../lib/prisma-exports";
 
+const visibilitySchema = z
+    .union([z.boolean(), z.enum(["true", "false", "1", "0"])])
+    .optional();
+
 export const createLostItemZodSchema = z.object({
     title: z.string().min(2).max(120).trim(),
-    description: z.string().min(5).max(2000).trim(),
+    description: z.string().min(5).max(500).trim(),
+    privateDescription: z.string().min(10).max(5000).trim(),
     category: z.nativeEnum(ItemCategory),
     location: z.string().min(2).max(200).trim(),
     building: z.string().max(120).trim().optional(),
     floor: z.string().max(20).trim().optional(),
     room: z.string().max(20).trim().optional(),
     dateLost: z.coerce.date(),
-    verificationQuestion: z.string().min(5).max(500).trim(),
-    verificationAnswer: z.string().min(2).max(500).trim(),
+    showImagePublic: visibilitySchema,
+    showDescriptionPublic: visibilitySchema,
+    showLocationPublic: visibilitySchema,
+    verificationQuestion: z.string().min(5).max(500).trim().optional(),
+    verificationAnswer: z.string().min(2).max(500).trim().optional(),
 });
 
 export const updateLostItemZodSchema = z
     .object({
         title: z.string().min(2).max(120).trim().optional(),
-        description: z.string().min(5).max(2000).trim().optional(),
+        description: z.string().min(5).max(500).trim().optional(),
+        privateDescription: z.string().min(10).max(5000).trim().optional(),
         category: z.nativeEnum(ItemCategory).optional(),
         location: z.string().min(2).max(200).trim().optional(),
         dateLost: z.coerce.date().optional(),
+        showImagePublic: visibilitySchema,
+        showDescriptionPublic: visibilitySchema,
+        showLocationPublic: visibilitySchema,
         verificationQuestion: z.string().min(5).max(500).trim().optional(),
         verificationAnswer: z.string().min(2).max(500).trim().optional(),
     })

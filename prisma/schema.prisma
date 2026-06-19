@@ -176,6 +176,7 @@ model LostItem {
   id                   String         @id @default(cuid())
   title                String
   description          String
+  privateDescription   String?
   category             ItemCategory
   imageUrl             String?
   location             String
@@ -185,6 +186,9 @@ model LostItem {
   dateLost             DateTime
   status               LostItemStatus @default(OPEN)
   isFeatured           Boolean        @default(false)
+  showImagePublic      Boolean        @default(true)
+  showDescriptionPublic Boolean       @default(true)
+  showLocationPublic   Boolean        @default(false)
   userId               String
   createdAt            DateTime       @default(now())
   updatedAt            DateTime       @updatedAt
@@ -201,24 +205,28 @@ model LostItem {
 }
 
 model FoundItem {
-  id          String          @id @default(cuid())
-  title       String
-  description String
-  category    ItemCategory
-  imageUrl    String?
-  location    String
-  building    String?
-  floor       String?
-  room        String?
-  dateFound   DateTime
-  status      FoundItemStatus @default(AVAILABLE)
-  isFeatured  Boolean         @default(false)
-  embedding   Unsupported("vector")?
-  userId      String
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  claims      Claim[]
+  id                    String          @id @default(cuid())
+  title                 String
+  description           String
+  privateDescription    String?
+  category              ItemCategory
+  imageUrl              String?
+  location              String
+  building              String?
+  floor                 String?
+  room                  String?
+  dateFound             DateTime
+  status                FoundItemStatus @default(AVAILABLE)
+  isFeatured            Boolean         @default(false)
+  showImagePublic       Boolean         @default(true)
+  showDescriptionPublic Boolean         @default(true)
+  showLocationPublic    Boolean         @default(false)
+  embedding             Unsupported("vector")?
+  userId                String
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  user                  User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  claims                Claim[]
 
   @@index([category])
   @@index([status])
@@ -234,6 +242,10 @@ model Claim {
   status              ClaimStatus @default(PENDING)
   autoApproved        Boolean     @default(false)
   matchScore          Int?
+  aiQuestions         Json?
+  aiAnswers           Json?
+  aiConfidence        Int?
+  aiRecommendation    String?
   receivedConfirmedAt DateTime?
   handoffCode         String?     @unique
   createdAt           DateTime    @default(now())

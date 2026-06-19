@@ -13,6 +13,8 @@ import {
     createClaimZodSchema,
     quickClaimZodSchema,
     updateClaimStatusZodSchema,
+    verificationQuestionsZodSchema,
+    verificationQuestionsPreviewZodSchema,
 } from "./claim.validation";
 
 const router = Router();
@@ -31,6 +33,20 @@ router.post(
     checkAuth(...allRoles),
     validateRequest(quickClaimZodSchema),
     ClaimController.createQuick,
+);
+
+router.post(
+    "/verification-questions/preview",
+    checkAuth(...allRoles),
+    validateRequest(verificationQuestionsPreviewZodSchema),
+    ClaimController.generateVerificationQuestionsPreview,
+);
+
+router.post(
+    "/verification-questions",
+    checkAuth(...allRoles),
+    validateRequest(verificationQuestionsZodSchema),
+    ClaimController.generateVerificationQuestions,
 );
 
 router.get(

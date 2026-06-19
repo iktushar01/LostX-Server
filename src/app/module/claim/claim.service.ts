@@ -9,33 +9,47 @@ import {
     LostItemStatus,
 } from "../../lib/prisma-exports";
 import AppError from "../../errorHelpers/AppError";
-import { envVars } from "../../../config/env";
-import { verifyVerificationAnswer, hashVerificationAnswer } from "../../utils/verification.util";
 import { isStaffOrAdmin } from "../../utils/auth-roles.util";
 import { buildLocationString } from "../../utils/location.util";
 import { AuditService } from "../audit/audit.service";
 import { scoreLostFoundPair } from "../match/match.service";
 import { NotificationService } from "../notification/notification.service";
+import { decryptText } from "../../utils/encryption.util";
+import {
+    VerificationAiService,
+    type AiVerificationAnswer,
+    type AiVerificationQuestion,
+} from "./verification-ai.service";
+import { encryptIfPresent } from "../../utils/encryption.util";
+import {
+    defaultVisibilityForCategory,
+    parseVisibilityFlag,
+} from "../../utils/visibility-defaults.util";
 
 type CreateClaimPayload = {
     foundItemId: string;
     lostItemId: string;
-    answer: string;
+    answer?: string;
+    aiQuestions?: AiVerificationQuestion[];
+    aiAnswers?: AiVerificationAnswer[];
 };
 
 type QuickClaimPayload = {
     foundItemId: string;
-    answer: string;
     title: string;
     description: string;
+    privateDescription: string;
     category: ItemCategory;
     location: string;
     building?: string;
     floor?: string;
     room?: string;
     dateLost: Date;
-    verificationQuestion: string;
-    verificationAnswer: string;
+    showImagePublic?: boolean | string;
+    showDescriptionPublic?: boolean | string;
+    showLocationPublic?: boolean | string;
+    aiQuestions: AiVerificationQuestion[];
+    aiAnswers: AiVerificationAnswer[];
 };
 
 const claimInclude = {
@@ -57,6 +71,65 @@ const claimInclude = {
 } as const;
 
 const generateHandoffCode = (): string => randomBytes(3).toString("hex").toUpperCase();
+
+const getPrivatePlain = (
+    encrypted: string | null | undefined,
+    publicDescription: string,
+): string => {
+    if (encrypted?.trim()) {
+        return decryptText(encrypted) ?? publicDescription;
+    }
+    return publicDescription;
+};
+
+const assertClaimPairAccess = async (
+    foundItemId: string,
+    lostItemId: string,
+    userId: string,
+) => {
+    const [foundItem, lostItem] = await Promise.all([
+        prisma.foundItem.findUnique({
+            where: { id: foundItemId },
+            include: { user: { select: { id: true, name: true, email: true } } },
+        }),
+        prisma.lostItem.findUnique({ where: { id: lostItemId } }),
+    ]);
+
+    if (!foundItem) {
+        throw new AppError(StatusCodes.NOT_FOUND, "Found item not found");
+    }
+
+    if (!lostItem) {
+        throw new AppError(StatusCodes.NOT_FOUND, "Lost item report not found");
+    }
+
+    if (lostItem.userId !== userId) {
+        throw new AppError(
+            StatusCodes.FORBIDDEN,
+            "You can only claim using your own lost item reports",
+        );
+    }
+
+    if (lostItem.status !== LostItemStatus.OPEN && lostItem.status !== LostItemStatus.MATCHED) {
+        throw new AppError(
+            StatusCodes.BAD_REQUEST,
+            "This lost item report is no longer open for claims",
+        );
+    }
+
+    if (foundItem.userId === userId) {
+        throw new AppError(StatusCodes.BAD_REQUEST, "You cannot claim your own found item");
+    }
+
+    if (foundItem.status !== FoundItemStatus.AVAILABLE) {
+        throw new AppError(
+            StatusCodes.BAD_REQUEST,
+            "This found item is no longer available for claims",
+        );
+    }
+
+    return { foundItem, lostItem };
+};
 
 const computeMatchScore = (
     lost: {
@@ -134,35 +207,48 @@ const approveClaimInTransaction = async (
 };
 
 export const ClaimService = {
-    create: async (payload: CreateClaimPayload, userId: string) => {
-        const [foundItem, lostItem] = await Promise.all([
-            prisma.foundItem.findUnique({
-                where: { id: payload.foundItemId },
-                include: { user: { select: { id: true, name: true, email: true } } },
-            }),
-            prisma.lostItem.findUnique({ where: { id: payload.lostItemId } }),
-        ]);
+    generateVerificationQuestions: async (
+        foundItemId: string,
+        lostItemId: string,
+        userId: string,
+    ) => {
+        const { foundItem, lostItem } = await assertClaimPairAccess(
+            foundItemId,
+            lostItemId,
+            userId,
+        );
+
+        const lostPrivate = getPrivatePlain(lostItem.privateDescription, lostItem.description);
+        const foundPrivate = getPrivatePlain(
+            foundItem.privateDescription,
+            foundItem.description,
+        );
+
+        const questions = await VerificationAiService.generateQuestions({
+            lostTitle: lostItem.title,
+            lostPublicDescription: lostItem.description,
+            lostPrivateDetails: lostPrivate,
+            foundTitle: foundItem.title,
+            foundPublicDescription: foundItem.description,
+            foundPrivateDetails: foundPrivate,
+        });
+
+        return { questions };
+    },
+
+    generateVerificationQuestionsPreview: async (
+        foundItemId: string,
+        lostDraft: {
+            title: string;
+            description: string;
+            privateDescription: string;
+        },
+        userId: string,
+    ) => {
+        const foundItem = await prisma.foundItem.findUnique({ where: { id: foundItemId } });
 
         if (!foundItem) {
             throw new AppError(StatusCodes.NOT_FOUND, "Found item not found");
-        }
-
-        if (!lostItem) {
-            throw new AppError(StatusCodes.NOT_FOUND, "Lost item report not found");
-        }
-
-        if (lostItem.userId !== userId) {
-            throw new AppError(
-                StatusCodes.FORBIDDEN,
-                "You can only claim using your own lost item reports",
-            );
-        }
-
-        if (lostItem.status !== LostItemStatus.OPEN && lostItem.status !== LostItemStatus.MATCHED) {
-            throw new AppError(
-                StatusCodes.BAD_REQUEST,
-                "This lost item report is no longer open for claims",
-            );
         }
 
         if (foundItem.userId === userId) {
@@ -170,58 +256,166 @@ export const ClaimService = {
         }
 
         if (foundItem.status !== FoundItemStatus.AVAILABLE) {
-            throw new AppError(
-                StatusCodes.BAD_REQUEST,
-                "This found item is no longer available for claims",
-            );
+            throw new AppError(StatusCodes.BAD_REQUEST, "This found item is no longer available");
         }
 
-        if (!lostItem.verificationQuestion?.trim() || !lostItem.verificationAnswer?.trim()) {
-            throw new AppError(
-                StatusCodes.BAD_REQUEST,
-                "Selected lost item is missing verification details",
-            );
-        }
-
-        const verificationPassed = await verifyVerificationAnswer(
-            payload.answer,
-            lostItem.verificationAnswer,
+        const foundPrivate = getPrivatePlain(
+            foundItem.privateDescription,
+            foundItem.description,
         );
 
-        if (!verificationPassed) {
-            await prisma.claim.create({
-                data: {
-                    foundItemId: payload.foundItemId,
-                    lostItemId: payload.lostItemId,
-                    userId,
-                    answer: payload.answer,
-                    status: ClaimStatus.REJECTED,
-                },
-            });
+        const questions = await VerificationAiService.generateQuestions({
+            lostTitle: lostDraft.title,
+            lostPublicDescription: lostDraft.description,
+            lostPrivateDetails: lostDraft.privateDescription,
+            foundTitle: foundItem.title,
+            foundPublicDescription: foundItem.description,
+            foundPrivateDetails: foundPrivate,
+        });
 
-            const user = await prisma.user.findUnique({
-                where: { id: userId },
-                select: { name: true, email: true },
-            });
+        return { questions };
+    },
 
-            if (user) {
-                await NotificationService.notifyClaimRejected({
-                    userId,
-                    userEmail: user.email,
-                    userName: user.name,
-                    itemTitle: foundItem.title,
-                    reason: "Your verification answer was incorrect. The claim was auto-rejected.",
-                });
+    create: async (payload: CreateClaimPayload, userId: string) => {
+        const { foundItem, lostItem } = await assertClaimPairAccess(
+            payload.foundItemId,
+            payload.lostItemId,
+            userId,
+        );
+
+        const usesAiFlow = Boolean(lostItem.privateDescription?.trim());
+
+        let answerSummary = payload.answer?.trim() ?? "";
+        let aiQuestions: AiVerificationQuestion[] | undefined;
+        let aiAnswers: AiVerificationAnswer[] | undefined;
+        let aiConfidence: number | undefined;
+        let aiRecommendation: string | undefined;
+        let verificationPassed = false;
+
+        if (usesAiFlow) {
+            if (!payload.aiQuestions?.length || !payload.aiAnswers?.length) {
+                throw new AppError(
+                    StatusCodes.BAD_REQUEST,
+                    "AI verification answers are required for this lost report",
+                );
             }
 
-            throw new AppError(
-                StatusCodes.UNPROCESSABLE_ENTITY,
-                "Verification answer incorrect. Your claim was auto-rejected.",
+            aiQuestions = payload.aiQuestions;
+            aiAnswers = payload.aiAnswers;
+
+            const lostPrivate = getPrivatePlain(
+                lostItem.privateDescription,
+                lostItem.description,
             );
+            const foundPrivate = getPrivatePlain(
+                foundItem.privateDescription,
+                foundItem.description,
+            );
+
+            const aiResult = await VerificationAiService.scoreAnswers({
+                lostPrivateDetails: lostPrivate,
+                foundPrivateDetails: foundPrivate,
+                questions: aiQuestions,
+                answers: aiAnswers,
+            });
+
+            aiConfidence = aiResult.confidence;
+            aiRecommendation = aiResult.recommendation;
+            verificationPassed = aiResult.recommendation !== "REJECT";
+            answerSummary = aiAnswers.map((a) => `${a.id}: ${a.answer}`).join("\n");
+
+            if (!verificationPassed) {
+                await prisma.claim.create({
+                    data: {
+                        foundItemId: payload.foundItemId,
+                        lostItemId: payload.lostItemId,
+                        userId,
+                        answer: answerSummary,
+                        status: ClaimStatus.REJECTED,
+                        aiQuestions,
+                        aiAnswers,
+                        aiConfidence,
+                        aiRecommendation,
+                    },
+                });
+
+                const user = await prisma.user.findUnique({
+                    where: { id: userId },
+                    select: { name: true, email: true },
+                });
+
+                if (user) {
+                    await NotificationService.notifyClaimRejected({
+                        userId,
+                        userEmail: user.email,
+                        userName: user.name,
+                        itemTitle: foundItem.title,
+                        reason: "AI verification did not confirm ownership. Your claim was auto-rejected.",
+                    });
+                }
+
+                throw new AppError(
+                    StatusCodes.UNPROCESSABLE_ENTITY,
+                    "Verification answers did not confirm ownership. Your claim was auto-rejected.",
+                );
+            }
+        } else {
+            if (!lostItem.verificationQuestion?.trim() || !lostItem.verificationAnswer?.trim()) {
+                throw new AppError(
+                    StatusCodes.BAD_REQUEST,
+                    "Selected lost item is missing verification details",
+                );
+            }
+
+            if (!answerSummary) {
+                throw new AppError(StatusCodes.BAD_REQUEST, "Verification answer is required");
+            }
+
+            verificationPassed = await verifyVerificationAnswer(
+                answerSummary,
+                lostItem.verificationAnswer,
+            );
+
+            if (!verificationPassed) {
+                await prisma.claim.create({
+                    data: {
+                        foundItemId: payload.foundItemId,
+                        lostItemId: payload.lostItemId,
+                        userId,
+                        answer: answerSummary,
+                        status: ClaimStatus.REJECTED,
+                    },
+                });
+
+                const user = await prisma.user.findUnique({
+                    where: { id: userId },
+                    select: { name: true, email: true },
+                });
+
+                if (user) {
+                    await NotificationService.notifyClaimRejected({
+                        userId,
+                        userEmail: user.email,
+                        userName: user.name,
+                        itemTitle: foundItem.title,
+                        reason: "Your verification answer was incorrect. The claim was auto-rejected.",
+                    });
+                }
+
+                throw new AppError(
+                    StatusCodes.UNPROCESSABLE_ENTITY,
+                    "Verification answer incorrect. Your claim was auto-rejected.",
+                );
+            }
         }
 
         const matchScore = computeMatchScore(lostItem, foundItem);
-        const shouldAutoApprove = matchScore >= envVars.AUTO_APPROVE_MATCH_THRESHOLD;
+        const shouldAutoApprove =
+            usesAiFlow
+                ? matchScore >= envVars.AUTO_APPROVE_MATCH_THRESHOLD &&
+                  (aiConfidence ?? 0) >= envVars.AI_AUTO_APPROVE_CONFIDENCE &&
+                  aiRecommendation === "APPROVE"
+                : matchScore >= envVars.AUTO_APPROVE_MATCH_THRESHOLD;
 
         const result = await prisma.$transaction(async (tx) => {
             const stillAvailable = await tx.foundItem.updateMany({
@@ -244,9 +438,13 @@ export const ClaimService = {
                     foundItemId: payload.foundItemId,
                     lostItemId: payload.lostItemId,
                     userId,
-                    answer: payload.answer,
+                    answer: answerSummary,
                     status: ClaimStatus.PENDING,
                     matchScore,
+                    ...(aiQuestions ? { aiQuestions } : {}),
+                    ...(aiAnswers ? { aiAnswers } : {}),
+                    ...(aiConfidence != null ? { aiConfidence } : {}),
+                    ...(aiRecommendation ? { aiRecommendation } : {}),
                 },
                 include: claimInclude,
             });
@@ -347,37 +545,62 @@ export const ClaimService = {
             location: payload.location,
         });
 
-        const plainMatch =
-            payload.answer.trim().toLowerCase() ===
-            payload.verificationAnswer.trim().toLowerCase();
+        const defaults = defaultVisibilityForCategory(payload.category);
+        const visibility = {
+            showImagePublic: parseVisibilityFlag(payload.showImagePublic, defaults.showImagePublic),
+            showDescriptionPublic: parseVisibilityFlag(
+                payload.showDescriptionPublic,
+                defaults.showDescriptionPublic,
+            ),
+            showLocationPublic: parseVisibilityFlag(
+                payload.showLocationPublic,
+                defaults.showLocationPublic,
+            ),
+        };
 
-        if (!plainMatch) {
+        const encryptedPrivate = encryptIfPresent(payload.privateDescription);
+        const foundPrivate = getPrivatePlain(
+            foundItem.privateDescription,
+            foundItem.description,
+        );
+
+        const aiResult = await VerificationAiService.scoreAnswers({
+            lostPrivateDetails: payload.privateDescription,
+            foundPrivateDetails: foundPrivate,
+            questions: payload.aiQuestions,
+            answers: payload.aiAnswers,
+        });
+
+        if (aiResult.recommendation === "REJECT") {
             throw new AppError(
                 StatusCodes.UNPROCESSABLE_ENTITY,
-                "Your claim answer must match the verification answer you set.",
+                "Verification answers did not confirm ownership.",
             );
         }
 
-        const hashedAnswer = await hashVerificationAnswer(payload.verificationAnswer);
+        const answerSummary = payload.aiAnswers.map((a) => `${a.id}: ${a.answer}`).join("\n");
 
         const lostStub = {
             title: payload.title,
             description: payload.description,
+            privateDescription: encryptedPrivate,
             category: payload.category,
             location,
             building: payload.building ?? null,
             floor: payload.floor ?? null,
             room: payload.room ?? null,
             dateLost: payload.dateLost,
-            verificationQuestion: payload.verificationQuestion,
-            verificationAnswer: hashedAnswer,
+            ...visibility,
         };
 
         const matchScore = computeMatchScore(
             { ...lostStub, dateLost: payload.dateLost },
             foundItem,
         );
-        const shouldAutoApprove = matchScore >= envVars.AUTO_APPROVE_MATCH_THRESHOLD;
+        const shouldAutoApprove =
+            matchScore >= envVars.AUTO_APPROVE_MATCH_THRESHOLD &&
+            aiResult.confidence >= envVars.AI_AUTO_APPROVE_CONFIDENCE &&
+            aiResult.recommendation === "APPROVE";
 
         const result = await prisma.$transaction(async (tx) => {
             const stillAvailable = await tx.foundItem.updateMany({
@@ -405,9 +628,13 @@ export const ClaimService = {
                     foundItemId: payload.foundItemId,
                     lostItemId: lostItem.id,
                     userId,
-                    answer: payload.answer,
+                    answer: answerSummary,
                     status: ClaimStatus.PENDING,
                     matchScore,
+                    aiQuestions: payload.aiQuestions,
+                    aiAnswers: payload.aiAnswers,
+                    aiConfidence: aiResult.confidence,
+                    aiRecommendation: aiResult.recommendation,
                 },
                 include: claimInclude,
             });
@@ -562,7 +789,15 @@ export const ClaimService = {
     getById: async (claimId: string, requesterUserId: string, requesterRole: string) => {
         const claim = await prisma.claim.findUnique({
             where: { id: claimId },
-            include: claimInclude,
+            include: {
+                ...claimInclude,
+                foundItem: {
+                    include: {
+                        user: { select: { id: true, name: true, email: true } },
+                    },
+                },
+                lostItem: true,
+            },
         });
 
         if (!claim) {
@@ -577,7 +812,30 @@ export const ClaimService = {
             throw new AppError(StatusCodes.FORBIDDEN, "You cannot access this claim");
         }
 
-        return claim;
+        if (!isAdmin) {
+            return claim;
+        }
+
+        const enrichItem = (
+            item: {
+                description: string;
+                privateDescription?: string | null;
+                [key: string]: unknown;
+            } | null,
+        ) => {
+            if (!item) return null;
+            const { privateDescription, ...rest } = item;
+            return {
+                ...rest,
+                privateDescriptionPlain: getPrivatePlain(privateDescription, item.description),
+            };
+        };
+
+        return {
+            ...claim,
+            foundItem: enrichItem(claim.foundItem),
+            lostItem: enrichItem(claim.lostItem),
+        };
     },
 
     updateStatus: async (

@@ -8,14 +8,21 @@ import { MatchService } from "../match/match.service";
 import { EmbeddingService } from "../chatbot/embedding.service";
 import { DuplicateService } from "../duplicate/duplicate.service";
 import { buildLocationString } from "../../utils/location.util";
-import { applyFoundItemLocationPrivacy } from "../../utils/item-privacy.util";
+import { applyFoundItemLocationPrivacy, type PublicItem } from "../../utils/item-privacy.util";
 import { isStaffOrAdmin } from "../../utils/auth-roles.util";
 import { AuditService } from "../audit/audit.service";
 import { AuditAction } from "../../lib/prisma-exports";
+import { encryptIfPresent } from "../../utils/encryption.util";
+import { stripSecretFields, withDecryptedPrivateDescription } from "../../utils/item-secrets.util";
+import {
+    defaultVisibilityForCategory,
+    parseVisibilityFlag,
+} from "../../utils/visibility-defaults.util";
 
 type CreateFoundItemPayload = {
     title: string;
     description: string;
+    privateDescription: string;
     category: ItemCategory;
     imageUrl?: string | null;
     location: string;
@@ -23,9 +30,33 @@ type CreateFoundItemPayload = {
     floor?: string | null;
     room?: string | null;
     dateFound: Date;
+    showImagePublic?: boolean | string;
+    showDescriptionPublic?: boolean | string;
+    showLocationPublic?: boolean | string;
 };
 
 type UpdateFoundItemPayload = Partial<CreateFoundItemPayload>;
+
+const resolveVisibility = (
+    category: ItemCategory,
+    payload: Pick<
+        CreateFoundItemPayload,
+        "showImagePublic" | "showDescriptionPublic" | "showLocationPublic"
+    >,
+) => {
+    const defaults = defaultVisibilityForCategory(category);
+    return {
+        showImagePublic: parseVisibilityFlag(payload.showImagePublic, defaults.showImagePublic),
+        showDescriptionPublic: parseVisibilityFlag(
+            payload.showDescriptionPublic,
+            defaults.showDescriptionPublic,
+        ),
+        showLocationPublic: parseVisibilityFlag(
+            payload.showLocationPublic,
+            defaults.showLocationPublic,
+        ),
+    };
+};
 
 export const FoundItemService = {
     create: async (
@@ -44,6 +75,8 @@ export const FoundItemService = {
         }
 
         const location = buildLocationString(itemPayload);
+        const visibility = resolveVisibility(itemPayload.category, itemPayload);
+        const encryptedPrivate = encryptIfPresent(itemPayload.privateDescription);
 
         await DuplicateService.assertNotDuplicateFound({
             userId: ownerId,
@@ -55,8 +88,17 @@ export const FoundItemService = {
 
         const item = await prisma.foundItem.create({
             data: {
-                ...itemPayload,
+                title: itemPayload.title,
+                description: itemPayload.description,
+                privateDescription: encryptedPrivate,
+                category: itemPayload.category,
+                imageUrl: itemPayload.imageUrl ?? null,
                 location,
+                building: itemPayload.building ?? null,
+                floor: itemPayload.floor ?? null,
+                room: itemPayload.room ?? null,
+                dateFound: itemPayload.dateFound,
+                ...visibility,
                 userId: ownerId,
                 status: FoundItemStatus.AVAILABLE,
             },
@@ -77,7 +119,7 @@ export const FoundItemService = {
             });
         }
 
-        return item;
+        return stripSecretFields(item);
     },
 
     getById: async (id: string, viewerUserId?: string, viewerRole?: string) => {
@@ -114,23 +156,42 @@ export const FoundItemService = {
         const isOwner = viewerUserId === item.userId;
         const isStaff = viewerRole ? isStaffOrAdmin(viewerRole) : false;
 
-        const withPrivacy = applyFoundItemLocationPrivacy(item, {
-            viewerUserId,
-            isOwner,
-            isStaffOrAdmin: isStaff,
-            hasApprovedClaim: Boolean(hasApprovedClaim),
-        });
+        const withPrivacy = applyFoundItemLocationPrivacy(
+            stripSecretFields(item) as PublicItem,
+            {
+                viewerUserId,
+                isOwner,
+                isStaffOrAdmin: isStaff,
+                hasApprovedClaim: Boolean(hasApprovedClaim),
+            },
+        );
+
+        if (isOwner || isStaff) {
+            return {
+                ...withDecryptedPrivateDescription(withPrivacy),
+                suggestedMatches,
+            };
+        }
 
         return { ...withPrivacy, suggestedMatches };
     },
 
     list: async (query: Record<string, unknown>, viewerUserId?: string, viewerRole?: string) => {
+        const hasStatusFilter = query.status !== undefined && query.status !== "";
+
         const result = await new QueryBuilder(prisma.foundItem as import("../../interfaces/query.interface").PrismaModelDelegate, query, {
             searchableFields: ["title", "description", "location"],
             filterableFields: ["category", "status", "isFeatured"],
         })
             .search()
             .filter()
+            .where(
+                hasStatusFilter
+                    ? {}
+                    : {
+                          status: FoundItemStatus.AVAILABLE,
+                      },
+            )
             .sort()
             .paginate()
             .include({
@@ -143,8 +204,14 @@ export const FoundItemService = {
         return {
             ...result,
             data: (result.data as CreateFoundItemPayload[]).map((item) => {
-                const row = item as CreateFoundItemPayload & { id: string; userId: string };
-                return applyFoundItemLocationPrivacy(row, {
+                const row = item as CreateFoundItemPayload & {
+                    id: string;
+                    userId: string;
+                    showImagePublic?: boolean;
+                    showDescriptionPublic?: boolean;
+                    showLocationPublic?: boolean;
+                };
+                return applyFoundItemLocationPrivacy(stripSecretFields(row) as PublicItem, {
                     viewerUserId,
                     isOwner: viewerUserId === row.userId,
                     isStaffOrAdmin: isStaff,
@@ -154,7 +221,7 @@ export const FoundItemService = {
     },
 
     listMine: async (userId: string, limit = 50) => {
-        return prisma.foundItem.findMany({
+        const items = await prisma.foundItem.findMany({
             where: { userId },
             orderBy: { createdAt: "desc" },
             take: limit,
@@ -162,6 +229,10 @@ export const FoundItemService = {
                 user: { select: { id: true, name: true } },
             },
         });
+
+        return items.map((item) =>
+            withDecryptedPrivateDescription(stripSecretFields(item)),
+        );
     },
 
     deleteOwn: async (id: string, userId: string) => {
@@ -205,9 +276,26 @@ export const FoundItemService = {
             );
         }
 
+        const { privateDescription, category, ...restPayload } = payload;
+        const data: Record<string, unknown> = { ...restPayload };
+
+        if (privateDescription?.trim()) {
+            data.privateDescription = encryptIfPresent(privateDescription);
+        }
+
+        if (category) {
+            Object.assign(data, resolveVisibility(category, payload));
+        } else if (
+            payload.showImagePublic !== undefined ||
+            payload.showDescriptionPublic !== undefined ||
+            payload.showLocationPublic !== undefined
+        ) {
+            Object.assign(data, resolveVisibility(item.category, payload));
+        }
+
         const updated = await prisma.foundItem.update({
             where: { id },
-            data: payload,
+            data,
             include: {
                 user: { select: { id: true, name: true, email: true } },
             },
@@ -215,7 +303,7 @@ export const FoundItemService = {
 
         EmbeddingService.scheduleFoundItemEmbedding(updated.id);
 
-        return updated;
+        return withDecryptedPrivateDescription(stripSecretFields(updated));
     },
 
     markReturned: async (id: string, userId: string, userRole: string) => {

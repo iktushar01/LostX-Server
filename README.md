@@ -12,9 +12,14 @@ University lost & found API built with Express, Prisma, PostgreSQL (Neon), and b
    - **Install Command**: leave empty (uses `vercel.json`)
 3. Add every variable from `.env.example` under **Environment Variables**.
 4. Run migrations once: `npx prisma migrate deploy`
-5. Deploy. Entry point is `src/index.ts`, routed by `vercel.json`.
+5. Deploy. Vercel builds to `dist/` and serves `dist/index.js` (required for ESM `.js` imports on Node).
 
 ### Troubleshooting Vercel deploy
+
+If you see `ERR_MODULE_NOT_FOUND` for paths like `src/config/origins` (no `.js` suffix):
+
+- The deploy must use the compiled `dist/` output, not raw `src/` TypeScript.
+- Confirm `vercel.json` has `"buildCommand": "pnpm run build"` and builds `"src": "dist/index.js"`.
 
 If you see `404: NOT_FOUND`:
 

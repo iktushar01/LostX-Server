@@ -3,7 +3,6 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import { toNodeHandler } from "better-auth/node";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { envVars } from "./config/env";
 import { getAllowedOrigins } from "./config/origins";
 import { IndexRoute } from "./app/routes/index";
@@ -17,10 +16,7 @@ const app: Application = express();
 const allowedOrigins = getAllowedOrigins();
 
 app.set("view engine", "ejs");
-app.set(
-    "views",
-    path.resolve(path.dirname(fileURLToPath(import.meta.url)), "app/templates"),
-);
+app.set("views", path.resolve(process.cwd(), "src/app/templates"));
 
 const corsOptions = {
     origin: (

@@ -1,9 +1,9 @@
 import dotenv from "dotenv";
-import { StatusCodes } from "http-status-codes";
 import { SignOptions } from "jsonwebtoken";
 
-import AppError from "../app/errorHelpers/AppError";
-dotenv.config()
+if (process.env.VERCEL !== "1") {
+    dotenv.config();
+}
 
 
 interface EnvConfig {
@@ -81,20 +81,32 @@ const requiredEnvVariables = [
 ];
 
 
-requiredEnvVariables.forEach((variable) => {
-    if (!process.env[variable]) {
-        if (variable === "PORT" && process.env.VERCEL === "1") {
-            return;
-        }
-
-        throw new AppError(StatusCodes.INTERNAL_SERVER_ERROR, `Environment variable ${variable} is not defined`);
+const missingEnvVariables = requiredEnvVariables.filter((variable) => {
+    if (process.env[variable]) {
+        return false;
     }
+
+    if (variable === "PORT" && process.env.VERCEL === "1") {
+        return false;
+    }
+
+    if (variable === "NODE_ENV" && process.env.VERCEL === "1") {
+        return false;
+    }
+
+    return true;
 });
+
+if (missingEnvVariables.length > 0) {
+    throw new Error(
+        `Missing required environment variables: ${missingEnvVariables.join(", ")}`,
+    );
+}
 
 const loadEnvVariables = (): EnvConfig => {
     return {
         PORT: (process.env.PORT ?? (process.env.VERCEL === "1" ? "3000" : "")) as string,
-        NODE_ENV: process.env.NODE_ENV as string,
+        NODE_ENV: (process.env.NODE_ENV ?? (process.env.VERCEL === "1" ? "production" : "")) as string,
         BETTER_AUTH_URL: process.env.BETTER_AUTH_URL as string,
         FRONTEND_URL: process.env.FRONTEND_URL as string,
         DATABASE_URL: process.env.DATABASE_URL as string,

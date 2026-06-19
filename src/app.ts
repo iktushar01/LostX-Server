@@ -32,7 +32,7 @@ const corsOptions = {
             return;
         }
 
-        callback(new Error("Not allowed by CORS"));
+        callback(null, false);
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
@@ -54,6 +54,14 @@ app.use(express.urlencoded({ extended: true }));
 
 app.get("/", (req: Request, res: Response) => {
   res.send("LostX Server is running 🚀");
+});
+
+app.get("/health", async (_req: Request, res: Response) => {
+  res.status(200).json({
+    success: true,
+    message: "LostX API is healthy",
+    environment: envVars.NODE_ENV,
+  });
 });
 
 app.get("/api/cron/expiry", async (req: Request, res: Response) => {

@@ -20,6 +20,24 @@ University lost & found API built with Express, Prisma, PostgreSQL (Neon), and b
 
 Preview deployments automatically allow the current `VERCEL_URL` for CORS and better-auth. For extra preview domains, set `ALLOWED_ORIGINS` as a comma-separated list.
 
+### Troubleshooting Vercel deploy
+
+If you see `FUNCTION_INVOCATION_FAILED` or `500: INTERNAL_SERVER_ERROR`:
+
+1. Open **Vercel → Project → Deployments → Logs** and look for `Missing required environment variables`.
+2. Add every variable from `.env.example` in **Project Settings → Environment Variables** (Production + Preview).
+3. Redeploy after saving env vars.
+4. Hit `https://your-api.vercel.app/health` — a JSON response means the function booted successfully.
+
+Required production values:
+
+| Variable | Example |
+|----------|---------|
+| `BETTER_AUTH_URL` | `https://your-api.vercel.app` |
+| `FRONTEND_URL` | `https://your-client.vercel.app` |
+| `DATABASE_URL` | Neon PostgreSQL connection string |
+| `CRON_SECRET` | random string from `openssl rand -hex 32` |
+
 ## Chatbot (RAG + pgvector)
 
 The AI chatbot helps users find lost or found items using semantic search and OpenRouter.

@@ -22,6 +22,27 @@ enum UserStatus {
   DELETED
 }
 
+enum TrustFlag {
+  NONE
+  WARNING
+  UNDER_REVIEW
+}
+
+enum UserReportReason {
+  FAKE_LISTING
+  HARASSMENT
+  SUSPICIOUS_CLAIM
+  IMPERSONATION
+  OTHER
+}
+
+enum UserReportStatus {
+  PENDING
+  REVIEWED
+  DISMISSED
+  ACTION_TAKEN
+}
+
 model User {
   id                  String     @id
   name                String
@@ -29,6 +50,7 @@ model User {
   emailVerified       Boolean    @default(false)
   role                Role       @default(USER)
   status              UserStatus @default(ACTIVE)
+  trustFlag           TrustFlag  @default(NONE)
   needPasswordChange  Boolean    @default(false)
   isDeleted           Boolean    @default(false)
   deletedAt           DateTime?
@@ -49,6 +71,10 @@ model User {
   notifications       Notification[]
   chatLogs            ChatLog[]
   auditLogs           AuditLog[]
+  reviewsGiven        UserReview[] @relation("ReviewsGiven")
+  reviewsReceived     UserReview[] @relation("ReviewsReceived")
+  reportsFiled        UserReport[] @relation("ReportsFiled")
+  reportsReceived     UserReport[] @relation("ReportsReceived")
 
   @@map("user")
 }
@@ -260,6 +286,7 @@ model Claim {
   user                User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   lostItem            LostItem?   @relation(fields: [lostItemId], references: [id], onDelete: SetNull)
   messages            ClaimMessage[]
+  reviews             UserReview[]
 
   @@unique([foundItemId, userId])
   @@index([foundItemId])
@@ -312,4 +339,44 @@ model AuditLog {
   @@index([entityType, entityId])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+model UserReview {
+  id         String   @id @default(cuid())
+  claimId    String
+  reviewerId String
+  revieweeId String
+  rating     Int
+  comment    String?  @db.VarChar(500)
+  createdAt  DateTime @default(now())
+  claim      Claim    @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  reviewer   User     @relation("ReviewsGiven", fields: [reviewerId], references: [id], onDelete: Cascade)
+  reviewee   User     @relation("ReviewsReceived", fields: [revieweeId], references: [id], onDelete: Cascade)
+
+  @@unique([claimId, reviewerId])
+  @@index([revieweeId])
+  @@index([reviewerId])
+  @@map("user_reviews")
+}
+
+model UserReport {
+  id          String           @id @default(cuid())
+  reporterId  String
+  reportedId  String
+  reason      UserReportReason
+  details     String           @db.VarChar(1000)
+  claimId     String?
+  lostItemId  String?
+  foundItemId String?
+  status      UserReportStatus @default(PENDING)
+  adminNote   String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  reporter    User             @relation("ReportsFiled", fields: [reporterId], references: [id], onDelete: Cascade)
+  reported    User             @relation("ReportsReceived", fields: [reportedId], references: [id], onDelete: Cascade)
+
+  @@index([reporterId])
+  @@index([reportedId])
+  @@index([status])
+  @@map("user_reports")
 }

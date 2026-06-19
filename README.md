@@ -4,29 +4,24 @@ University lost & found API built with Express, Prisma, PostgreSQL (Neon), and b
 
 ## Deploy to Vercel
 
-1. Import this repository as a separate Vercel project (root directory: `LostX-Server` if using a monorepo).
-2. Copy `.env.example` to Vercel environment variables. Important production values:
-   - `NODE_ENV=production`
-   - `BETTER_AUTH_URL` — your deployed API URL (e.g. `https://lostx-api.vercel.app`)
-   - `FRONTEND_URL` — your deployed client URL (e.g. `https://lostx.vercel.app`)
-   - `GOOGLE_CALLBACK_URL` — `{BETTER_AUTH_URL}/api/v1/auth/google/callback` (or your OAuth callback path)
-   - `CRON_SECRET` — random secret for the daily item-expiry cron (`openssl rand -hex 32`)
-   - `DATABASE_URL` — Neon PostgreSQL connection string with `pgvector` enabled
-3. Run database migrations before first deploy:
-   ```bash
-   npx prisma migrate deploy
-   ```
-4. Deploy. Vercel detects `src/server.ts` as the Express entry point.
-
-Preview deployments automatically allow the current `VERCEL_URL` for CORS and better-auth. For extra preview domains, set `ALLOWED_ORIGINS` as a comma-separated list.
+1. Import this repository as a Vercel project (root directory must be the server repo root, not a parent monorepo folder).
+2. In **Project Settings → General**, set:
+   - **Framework Preset**: `Other`
+   - **Build Command**: leave empty (overrides in dashboard break Express routing)
+   - **Output Directory**: leave empty
+   - **Install Command**: leave empty (uses `vercel.json`)
+3. Add every variable from `.env.example` under **Environment Variables**.
+4. Run migrations once: `npx prisma migrate deploy`
+5. Deploy. Entry point is `src/index.ts`, routed by `vercel.json`.
 
 ### Troubleshooting Vercel deploy
 
 If you see `404: NOT_FOUND`:
 
-- Do **not** use legacy `builds`/`routes` in `vercel.json` — Vercel routes the app through root `index.ts`.
-- Confirm the Vercel project **Root Directory** is `LostX-Server` (not the monorepo root).
-- Redeploy after pushing the latest `vercel.json` and `index.ts`.
+- Open **Project Settings → General** and clear any custom **Build Command** or **Output Directory** (e.g. `dist`, `.next`, `public`). Those turn the deploy into a static site with no API.
+- Confirm **Root Directory** is correct (`.` for this repo, or `LostX-Server` if inside a monorepo).
+- Redeploy after pushing `src/index.ts` and the latest `vercel.json`.
+- In **Deployments → Build Logs**, confirm `postinstall` ran `prisma generate` successfully.
 
 If you see `FUNCTION_INVOCATION_FAILED` or `500: INTERNAL_SERVER_ERROR`:
 

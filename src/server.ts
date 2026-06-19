@@ -1,5 +1,5 @@
 import type { Server } from "http";
-import app from "./app";
+import { app } from "./app.js";
 import { envVars } from "./config/env";
 import { seedSuperAdmin } from "./app/utils/seed";
 import { ExpiryService } from "./app/module/expiry/expiry.service";

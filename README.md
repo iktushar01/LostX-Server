@@ -22,6 +22,12 @@ Preview deployments automatically allow the current `VERCEL_URL` for CORS and be
 
 ### Troubleshooting Vercel deploy
 
+If you see `404: NOT_FOUND`:
+
+- Do **not** use legacy `builds`/`routes` in `vercel.json` — Vercel routes the app through root `index.ts`.
+- Confirm the Vercel project **Root Directory** is `LostX-Server` (not the monorepo root).
+- Redeploy after pushing the latest `vercel.json` and `index.ts`.
+
 If you see `FUNCTION_INVOCATION_FAILED` or `500: INTERNAL_SERVER_ERROR`:
 
 1. Open **Vercel → Project → Deployments → Logs** and look for `Missing required environment variables`.

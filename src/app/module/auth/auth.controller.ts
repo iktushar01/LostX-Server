@@ -352,6 +352,18 @@ const exchangeOAuthCode = catchAsync(async (req: Request, res: Response) => {
     });
 });
 
+const deleteAccount = catchAsync(async (req: Request, res: Response) => {
+    const user = req.user as IRequestUser;
+    const result = await AuthService.deleteAccount(user.userId, req.body);
+
+    sendResponse(res, {
+        statusCode: StatusCodes.OK,
+        success: true,
+        message: "Account deleted successfully",
+        data: result,
+    });
+});
+
 // ─── Exports ──────────────────────────────────────────────────────────────────
 
 export const AuthController = {
@@ -370,4 +382,5 @@ export const AuthController = {
     googleLoginSuccess,
     exchangeOAuthCode,
     handleOAuthError,
+    deleteAccount,
 };

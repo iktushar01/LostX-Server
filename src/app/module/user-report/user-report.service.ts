@@ -54,7 +54,7 @@ export const UserReportService = {
 
     listForAdmin: async (status?: UserReportStatus) => {
         return prisma.userReport.findMany({
-            where: status ? { status } : undefined,
+            ...(status ? { where: { status } } : {}),
             orderBy: { createdAt: "desc" },
             take: 100,
             include: {

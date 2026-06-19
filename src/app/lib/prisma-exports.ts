@@ -39,6 +39,15 @@ export type NotificationType = (typeof NotificationType)[keyof typeof Notificati
 export const AuditAction = prismaModule.AuditAction;
 export type AuditAction = (typeof AuditAction)[keyof typeof AuditAction];
 
+export const TrustFlag = prismaModule.TrustFlag;
+export type TrustFlag = (typeof TrustFlag)[keyof typeof TrustFlag];
+
+export const UserReportReason = prismaModule.UserReportReason;
+export type UserReportReason = (typeof UserReportReason)[keyof typeof UserReportReason];
+
+export const UserReportStatus = prismaModule.UserReportStatus;
+export type UserReportStatus = (typeof UserReportStatus)[keyof typeof UserReportStatus];
+
 /** Profile field only — not stored on the user model */
 export const Gender = {
   MALE: "MALE",

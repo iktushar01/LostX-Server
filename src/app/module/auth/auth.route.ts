@@ -13,6 +13,7 @@ import {
     resetPasswordZodSchema,
  changePasswordZodSchema,
     updateProfileZodSchema,
+    deleteAccountZodSchema,
  } from "./auth.validation";
 
 
@@ -89,5 +90,12 @@ router.post(
 );
 
 router.post("/logout", checkAuth(...allRoles), AuthController.logoutUser);
+
+router.post(
+    "/delete-account",
+    checkAuth(...allRoles),
+    validateRequest(deleteAccountZodSchema),
+    AuthController.deleteAccount,
+);
 
 export const AuthRoute: Router = router;

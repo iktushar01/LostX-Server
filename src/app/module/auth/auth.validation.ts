@@ -163,3 +163,8 @@ export const updateProfileZodSchema = z.object({
         message: "At least one profile field must be provided",
     },
 );
+
+export const deleteAccountZodSchema = z.object({
+    email: z.string().email().trim(),
+    password: z.string().min(1).optional(),
+});

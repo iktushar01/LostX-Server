@@ -510,6 +510,56 @@ const issueTokensFromOAuthCode = async (user: {
     return { accessToken, refreshToken, user };
 };
 
+const deleteAccount = async (userId: string, payload: { email: string; password?: string }) => {
+    const user = await prisma.user.findUnique({
+        where: { id: userId },
+        include: {
+            accounts: {
+                where: { providerId: "credential" },
+                select: { id: true },
+            },
+        },
+    });
+
+    if (!user || user.isDeleted || user.status === UserStatus.DELETED) {
+        throw new AppError(StatusCodes.NOT_FOUND, "Account not found");
+    }
+
+    if (user.email.toLowerCase() !== payload.email.toLowerCase().trim()) {
+        throw new AppError(StatusCodes.BAD_REQUEST, "Email confirmation does not match");
+    }
+
+    const hasCredential = user.accounts.length > 0;
+    if (hasCredential) {
+        if (!payload.password?.trim()) {
+            throw new AppError(StatusCodes.BAD_REQUEST, "Password is required to delete this account");
+        }
+        try {
+            await auth.api.signInEmail({
+                body: { email: user.email, password: payload.password },
+            });
+        } catch {
+            throw new AppError(StatusCodes.UNAUTHORIZED, "Invalid password");
+        }
+    }
+
+    await prisma.$transaction(async (tx) => {
+        await tx.session.deleteMany({ where: { userId } });
+        await tx.user.update({
+            where: { id: userId },
+            data: {
+                name: "Deleted user",
+                image: null,
+                isDeleted: true,
+                deletedAt: new Date(),
+                status: UserStatus.DELETED,
+            },
+        });
+    });
+
+    return { id: userId };
+};
+
 // ─── Exports ──────────────────────────────────────────────────────────────────
 
 export const AuthService = {
@@ -526,4 +576,5 @@ export const AuthService = {
     resetPassword,
     googleLoginSuccess,
     issueTokensFromOAuthCode,
+    deleteAccount,
 };

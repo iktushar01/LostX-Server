@@ -331,7 +331,7 @@ export const FoundItemService = {
             .sort()
             .paginate()
             .include({
-                user: { select: { id: true, name: true } },
+                user: { select: { id: true, name: true, image: true } },
             })
             .execute();
 

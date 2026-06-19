@@ -290,7 +290,6 @@ export const ClaimService = {
         let aiAnswers: AiVerificationAnswer[] | undefined;
         let aiConfidence: number | undefined;
         let aiRecommendation: string | undefined;
-        let verificationPassed = false;
 
         if (usesAiFlow) {
             if (!payload.aiQuestions?.length || !payload.aiAnswers?.length) {
@@ -321,44 +320,7 @@ export const ClaimService = {
 
             aiConfidence = aiResult.confidence;
             aiRecommendation = aiResult.recommendation;
-            verificationPassed = aiResult.recommendation !== "REJECT";
             answerSummary = aiAnswers.map((a) => `${a.id}: ${a.answer}`).join("\n");
-
-            if (!verificationPassed) {
-                await prisma.claim.create({
-                    data: {
-                        foundItemId: payload.foundItemId,
-                        lostItemId: payload.lostItemId,
-                        userId,
-                        answer: answerSummary,
-                        status: ClaimStatus.REJECTED,
-                        aiQuestions,
-                        aiAnswers,
-                        aiConfidence,
-                        aiRecommendation,
-                    },
-                });
-
-                const user = await prisma.user.findUnique({
-                    where: { id: userId },
-                    select: { name: true, email: true },
-                });
-
-                if (user) {
-                    await NotificationService.notifyClaimRejected({
-                        userId,
-                        userEmail: user.email,
-                        userName: user.name,
-                        itemTitle: foundItem.title,
-                        reason: "AI verification did not confirm ownership. Your claim was auto-rejected.",
-                    });
-                }
-
-                throw new AppError(
-                    StatusCodes.UNPROCESSABLE_ENTITY,
-                    "Verification answers did not confirm ownership. Your claim was auto-rejected.",
-                );
-            }
         } else {
             if (!lostItem.verificationQuestion?.trim() || !lostItem.verificationAnswer?.trim()) {
                 throw new AppError(
@@ -370,52 +332,9 @@ export const ClaimService = {
             if (!answerSummary) {
                 throw new AppError(StatusCodes.BAD_REQUEST, "Verification answer is required");
             }
-
-            verificationPassed = await verifyVerificationAnswer(
-                answerSummary,
-                lostItem.verificationAnswer,
-            );
-
-            if (!verificationPassed) {
-                await prisma.claim.create({
-                    data: {
-                        foundItemId: payload.foundItemId,
-                        lostItemId: payload.lostItemId,
-                        userId,
-                        answer: answerSummary,
-                        status: ClaimStatus.REJECTED,
-                    },
-                });
-
-                const user = await prisma.user.findUnique({
-                    where: { id: userId },
-                    select: { name: true, email: true },
-                });
-
-                if (user) {
-                    await NotificationService.notifyClaimRejected({
-                        userId,
-                        userEmail: user.email,
-                        userName: user.name,
-                        itemTitle: foundItem.title,
-                        reason: "Your verification answer was incorrect. The claim was auto-rejected.",
-                    });
-                }
-
-                throw new AppError(
-                    StatusCodes.UNPROCESSABLE_ENTITY,
-                    "Verification answer incorrect. Your claim was auto-rejected.",
-                );
-            }
         }
 
         const matchScore = computeMatchScore(lostItem, foundItem);
-        const shouldAutoApprove =
-            usesAiFlow
-                ? matchScore >= envVars.AUTO_APPROVE_MATCH_THRESHOLD &&
-                  (aiConfidence ?? 0) >= envVars.AI_AUTO_APPROVE_CONFIDENCE &&
-                  aiRecommendation === "APPROVE"
-                : matchScore >= envVars.AUTO_APPROVE_MATCH_THRESHOLD;
 
         const result = await prisma.$transaction(async (tx) => {
             const stillAvailable = await tx.foundItem.updateMany({
@@ -449,70 +368,29 @@ export const ClaimService = {
                 include: claimInclude,
             });
 
-            let superseded: Awaited<ReturnType<typeof approveClaimInTransaction>> = [];
-
-            if (shouldAutoApprove) {
-                const handoffCode = generateHandoffCode();
-                superseded = await approveClaimInTransaction(
-                    tx,
-                    claim.id,
-                    payload.foundItemId,
-                    payload.lostItemId,
-                    { autoApproved: true, handoffCode },
-                );
-            }
-
             const finalClaim = await tx.claim.findUnique({
                 where: { id: claim.id },
                 include: claimInclude,
             });
 
-            return { claim: finalClaim!, superseded, shouldAutoApprove };
+            return { claim: finalClaim! };
         });
 
-        if (result.shouldAutoApprove) {
-            await NotificationService.notifyClaimApproved({
-                userId,
-                userEmail: result.claim.user.email,
-                userName: result.claim.user.name,
-                itemTitle: foundItem.title,
+        await Promise.all([
+            NotificationService.notifyClaimPending({
                 claimId: result.claim.id,
-            });
-
-            await AuditService.log({
-                actorId: userId,
-                action: AuditAction.CLAIM_AUTO_APPROVED,
-                entityType: "claim",
-                entityId: result.claim.id,
-                metadata: { matchScore, foundItemId: payload.foundItemId },
-            });
-
-            for (const other of result.superseded) {
-                await NotificationService.notifyClaimRejected({
-                    userId: other.userId,
-                    userEmail: other.user.email,
-                    userName: other.user.name,
-                    itemTitle: other.foundItem.title,
-                    reason: "Another claim was approved for this item.",
-                });
-            }
-        } else {
-            await Promise.all([
-                NotificationService.notifyClaimPending({
-                    claimId: result.claim.id,
-                    claimantName: result.claim.user.name,
-                    itemTitle: foundItem.title,
-                }),
-                NotificationService.notifyFinderNewClaim({
-                    finderId: foundItem.userId,
-                    finderEmail: foundItem.user.email,
-                    finderName: foundItem.user.name,
-                    itemTitle: foundItem.title,
-                    claimantName: result.claim.user.name,
-                    claimId: result.claim.id,
-                }),
-            ]);
-        }
+                claimantName: result.claim.user.name,
+                itemTitle: foundItem.title,
+            }),
+            NotificationService.notifyFinderNewClaim({
+                finderId: foundItem.userId,
+                finderEmail: foundItem.user.email,
+                finderName: foundItem.user.name,
+                itemTitle: foundItem.title,
+                claimantName: result.claim.user.name,
+                claimId: result.claim.id,
+            }),
+        ]);
 
         return result.claim;
     },
@@ -571,13 +449,6 @@ export const ClaimService = {
             answers: payload.aiAnswers,
         });
 
-        if (aiResult.recommendation === "REJECT") {
-            throw new AppError(
-                StatusCodes.UNPROCESSABLE_ENTITY,
-                "Verification answers did not confirm ownership.",
-            );
-        }
-
         const answerSummary = payload.aiAnswers.map((a) => `${a.id}: ${a.answer}`).join("\n");
 
         const lostStub = {
@@ -597,10 +468,6 @@ export const ClaimService = {
             { ...lostStub, dateLost: payload.dateLost },
             foundItem,
         );
-        const shouldAutoApprove =
-            matchScore >= envVars.AUTO_APPROVE_MATCH_THRESHOLD &&
-            aiResult.confidence >= envVars.AI_AUTO_APPROVE_CONFIDENCE &&
-            aiResult.recommendation === "APPROVE";
 
         const result = await prisma.$transaction(async (tx) => {
             const stillAvailable = await tx.foundItem.updateMany({
@@ -639,19 +506,6 @@ export const ClaimService = {
                 include: claimInclude,
             });
 
-            let superseded: Awaited<ReturnType<typeof approveClaimInTransaction>> = [];
-
-            if (shouldAutoApprove) {
-                const handoffCode = generateHandoffCode();
-                superseded = await approveClaimInTransaction(
-                    tx,
-                    claim.id,
-                    payload.foundItemId,
-                    lostItem.id,
-                    { autoApproved: true, handoffCode },
-                );
-            }
-
             const finalClaim = await tx.claim.findUnique({
                 where: { id: claim.id },
                 include: claimInclude,
@@ -660,45 +514,25 @@ export const ClaimService = {
             return {
                 claim: finalClaim!,
                 lostItem,
-                superseded,
-                shouldAutoApprove,
                 matchScore,
             };
         });
 
-        if (result.shouldAutoApprove) {
-            await NotificationService.notifyClaimApproved({
-                userId,
-                userEmail: result.claim.user.email,
-                userName: result.claim.user.name,
-                itemTitle: foundItem.title,
+        await Promise.all([
+            NotificationService.notifyClaimPending({
                 claimId: result.claim.id,
-            });
-
-            await AuditService.log({
-                actorId: userId,
-                action: AuditAction.CLAIM_AUTO_APPROVED,
-                entityType: "claim",
-                entityId: result.claim.id,
-                metadata: { matchScore: result.matchScore, quickClaim: true },
-            });
-        } else {
-            await Promise.all([
-                NotificationService.notifyClaimPending({
-                    claimId: result.claim.id,
-                    claimantName: result.claim.user.name,
-                    itemTitle: foundItem.title,
-                }),
-                NotificationService.notifyFinderNewClaim({
-                    finderId: foundItem.userId,
-                    finderEmail: foundItem.user.email,
-                    finderName: foundItem.user.name,
-                    itemTitle: foundItem.title,
-                    claimantName: result.claim.user.name,
-                    claimId: result.claim.id,
-                }),
-            ]);
-        }
+                claimantName: result.claim.user.name,
+                itemTitle: foundItem.title,
+            }),
+            NotificationService.notifyFinderNewClaim({
+                finderId: foundItem.userId,
+                finderEmail: foundItem.user.email,
+                finderName: foundItem.user.name,
+                itemTitle: foundItem.title,
+                claimantName: result.claim.user.name,
+                claimId: result.claim.id,
+            }),
+        ]);
 
         return result.claim;
     },

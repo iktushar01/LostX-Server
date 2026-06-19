@@ -24,6 +24,24 @@ const create = catchAsync(async (req: Request, res: Response) => {
     });
 });
 
+const createFromLostTip = catchAsync(async (req: Request, res: Response) => {
+    const user = req.user as IRequestUser;
+    const imageUrl = await getUploadedImageUrl(req);
+
+    const result = await FoundItemService.createFromLostTip(
+        req.params.lostItemId as string,
+        { ...req.body, imageUrl },
+        user.userId,
+    );
+
+    sendResponse(res, {
+        statusCode: StatusCodes.CREATED,
+        success: true,
+        message: "Finder tip submitted. The owner has been notified.",
+        data: result,
+    });
+});
+
 const getById = catchAsync(async (req: Request, res: Response) => {
     const user = req.user as IRequestUser | undefined;
     const result = await FoundItemService.getById(
@@ -120,6 +138,7 @@ const update = catchAsync(async (req: Request, res: Response) => {
 
 export const FoundItemController = {
     create,
+    createFromLostTip,
     getById,
     list,
     listMine,

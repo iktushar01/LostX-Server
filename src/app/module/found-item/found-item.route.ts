@@ -7,7 +7,9 @@ import { memoryUpload } from "../../../config/multer.config";
 import { FoundItemController } from "./found-item.controller";
 import {
     createFoundItemZodSchema,
+    finderTipZodSchema,
     foundItemIdParamSchema,
+    lostItemIdParamSchema,
     updateFoundItemZodSchema,
 } from "./found-item.validation";
 
@@ -35,6 +37,15 @@ router.post(
     memoryUpload.single("image"),
     validateRequest(createFoundItemZodSchema),
     FoundItemController.create,
+);
+
+router.post(
+    "/from-lost-tip/:lostItemId",
+    checkAuth(...allRoles),
+    memoryUpload.single("image"),
+    validateRequest(lostItemIdParamSchema, "params"),
+    validateRequest(finderTipZodSchema),
+    FoundItemController.createFromLostTip,
 );
 
 router.delete(

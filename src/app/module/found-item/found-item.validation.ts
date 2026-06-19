@@ -19,6 +19,16 @@ export const createFoundItemZodSchema = z.object({
     showDescriptionPublic: visibilitySchema,
     showLocationPublic: visibilitySchema,
     onBehalfOfUserId: z.string().min(1).optional(),
+    linkedLostItemId: z.string().min(1).optional(),
+});
+
+export const finderTipZodSchema = z.object({
+    note: z.string().max(500).trim().optional(),
+    location: z.string().min(2).max(200).trim(),
+    building: z.string().max(120).trim().optional(),
+    floor: z.string().max(20).trim().optional(),
+    room: z.string().max(20).trim().optional(),
+    dateFound: z.coerce.date(),
 });
 
 export const updateFoundItemZodSchema = z
@@ -42,4 +52,8 @@ export const updateFoundItemZodSchema = z
 
 export const foundItemIdParamSchema = z.object({
     id: z.string().min(1),
+});
+
+export const lostItemIdParamSchema = z.object({
+    lostItemId: z.string().min(1),
 });

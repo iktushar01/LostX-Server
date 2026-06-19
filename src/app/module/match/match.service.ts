@@ -223,6 +223,109 @@ export const MatchService = {
         return { byLostId, byFoundId };
     },
 
+    getDraftMatches: async (draft: {
+        title: string;
+        description: string;
+        category: ItemCategory;
+        location: string;
+        dateFound: Date;
+    }): Promise<ScoredMatch[]> => {
+        const lostItems = await prisma.lostItem.findMany({
+            where: { status: { in: [LostItemStatus.OPEN, LostItemStatus.MATCHED] } },
+            take: 200,
+            orderBy: { createdAt: "desc" },
+        });
+
+        const foundDraft: MatchableItem = {
+            id: "draft",
+            title: draft.title,
+            description: draft.description,
+            category: draft.category,
+            location: draft.location,
+            dateFound: draft.dateFound,
+            status: FoundItemStatus.AVAILABLE,
+        };
+
+        return lostItems
+            .map((lost) => {
+                const lostMatchable: MatchableItem = { ...lost, dateLost: lost.dateLost };
+                const score = scoreLostFoundPair(lostMatchable, foundDraft);
+                return {
+                    match: toScoredMatch(lostMatchable, score, "lost"),
+                    score,
+                };
+            })
+            .filter(({ score }) => score >= MATCH_SUGGESTION_MIN)
+            .sort((a, b) => b.score - a.score)
+            .slice(0, MAX_SUGGESTIONS)
+            .map(({ match }) => match);
+    },
+
+    notifyLostOwnersForFoundItem: async (foundItem: {
+        id: string;
+        title: string;
+        description: string;
+        category: ItemCategory;
+        location: string;
+        dateFound: Date;
+        linkedLostItemId?: string | null;
+    }) => {
+        const lostItems = await prisma.lostItem.findMany({
+            where: { status: { in: [LostItemStatus.OPEN, LostItemStatus.MATCHED] } },
+            include: { user: { select: { id: true, email: true, name: true } } },
+            take: 200,
+            orderBy: { createdAt: "desc" },
+        });
+
+        const foundMatchable: MatchableItem = {
+            id: foundItem.id,
+            title: foundItem.title,
+            description: foundItem.description,
+            category: foundItem.category,
+            location: foundItem.location,
+            dateFound: foundItem.dateFound,
+            status: FoundItemStatus.AVAILABLE,
+        };
+
+        for (const lost of lostItems) {
+            const lostMatchable: MatchableItem = { ...lost, dateLost: lost.dateLost };
+            const score = scoreLostFoundPair(lostMatchable, foundMatchable);
+            const isLinked = foundItem.linkedLostItemId === lost.id;
+
+            if (!isLinked && score < MATCH_HIGH_THRESHOLD) {
+                continue;
+            }
+
+            if (lost.status === LostItemStatus.OPEN) {
+                await prisma.lostItem.updateMany({
+                    where: { id: lost.id, status: LostItemStatus.OPEN },
+                    data: { status: LostItemStatus.MATCHED },
+                });
+            }
+
+            if (isLinked) {
+                await NotificationService.notifyPossibleReturn({
+                    userId: lost.user.id,
+                    userEmail: lost.user.email,
+                    userName: lost.user.name,
+                    lostItemTitle: lost.title,
+                    foundItemTitle: foundItem.title,
+                    foundItemId: foundItem.id,
+                });
+            } else {
+                await NotificationService.notifyMatchFound({
+                    userId: lost.user.id,
+                    userEmail: lost.user.email,
+                    userName: lost.user.name,
+                    lostItemTitle: lost.title,
+                    matchedItemTitle: foundItem.title,
+                    matchScore: score,
+                    foundItemId: foundItem.id,
+                });
+            }
+        }
+    },
+
     applyHighMatchStatus: async (lostItemId: string, matches: ScoredMatch[]) => {
         const topMatch = matches[0];
         if (!topMatch || topMatch.score < MATCH_HIGH_THRESHOLD) return;

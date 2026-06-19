@@ -228,4 +228,39 @@ export const NotificationService = {
             console.error("Failed to send match-found notification email:", error);
         }
     },
+
+    notifyPossibleReturn: async (params: {
+        userId: string;
+        userEmail: string;
+        userName: string;
+        lostItemTitle: string;
+        foundItemTitle: string;
+        foundItemId: string;
+    }) => {
+        const href = `${envVars.FRONTEND_URL}/dashboard/found/${params.foundItemId}`;
+        await NotificationService.create({
+            userId: params.userId,
+            type: NotificationType.POSSIBLE_RETURN,
+            title: "Someone may have found your item",
+            body: `Someone reported they may have found your lost item "${params.lostItemTitle}". Review the listing and submit a claim if it looks like yours.`,
+            href,
+        });
+
+        try {
+            await sendEmail({
+                to: params.userEmail,
+                subject: `Someone may have found your item: ${params.lostItemTitle}`,
+                templateName: "claim-approved",
+                templateData: {
+                    name: params.userName,
+                    itemTitle: params.lostItemTitle,
+                    claimsUrl: href,
+                    headline: "Someone may have found your item",
+                    message: `Someone reported they may have found "${params.lostItemTitle}" as "${params.foundItemTitle}". If this is yours, open the listing and submit a claim for admin review.`,
+                },
+            });
+        } catch (error) {
+            console.error("Failed to send possible-return notification email:", error);
+        }
+    },
 };

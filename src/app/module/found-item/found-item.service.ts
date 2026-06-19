@@ -1,6 +1,6 @@
 import { StatusCodes } from "http-status-codes";
 import { prisma } from "../../lib/prisma";
-import { FoundItemStatus, ItemCategory, Role, ClaimStatus } from "../../lib/prisma-exports";
+import { FoundItemStatus, ItemCategory, Role, ClaimStatus, LostItemStatus } from "../../lib/prisma-exports";
 import AppError from "../../errorHelpers/AppError";
 import { QueryBuilder } from "../../utils/QueryBuilder";
 import { NotificationService } from "../notification/notification.service";
@@ -33,6 +33,17 @@ type CreateFoundItemPayload = {
     showImagePublic?: boolean | string;
     showDescriptionPublic?: boolean | string;
     showLocationPublic?: boolean | string;
+    linkedLostItemId?: string;
+};
+
+type FinderTipPayload = {
+    note?: string;
+    location: string;
+    building?: string | null;
+    floor?: string | null;
+    room?: string | null;
+    dateFound: Date;
+    imageUrl?: string | null;
 };
 
 type UpdateFoundItemPayload = Partial<CreateFoundItemPayload>;
@@ -58,13 +69,34 @@ const resolveVisibility = (
     };
 };
 
+const assertLinkedLostItem = async (linkedLostItemId: string, finderId: string) => {
+    const lostItem = await prisma.lostItem.findUnique({
+        where: { id: linkedLostItemId },
+        select: { id: true, userId: true, status: true, title: true, category: true },
+    });
+
+    if (!lostItem) {
+        throw new AppError(StatusCodes.NOT_FOUND, "Linked lost report not found");
+    }
+
+    if (lostItem.userId === finderId) {
+        throw new AppError(StatusCodes.BAD_REQUEST, "You cannot link a found report to your own lost report");
+    }
+
+    if (lostItem.status !== LostItemStatus.OPEN && lostItem.status !== LostItemStatus.MATCHED) {
+        throw new AppError(StatusCodes.BAD_REQUEST, "This lost report is no longer open for finder tips");
+    }
+
+    return lostItem;
+};
+
 export const FoundItemService = {
     create: async (
         payload: CreateFoundItemPayload & { onBehalfOfUserId?: string },
         actorId: string,
         actorRole?: string,
     ) => {
-        const { onBehalfOfUserId, ...itemPayload } = payload;
+        const { onBehalfOfUserId, linkedLostItemId, ...itemPayload } = payload;
         const ownerId = onBehalfOfUserId ?? actorId;
 
         if (onBehalfOfUserId && !isStaffOrAdmin(actorRole ?? "")) {
@@ -72,6 +104,10 @@ export const FoundItemService = {
                 StatusCodes.FORBIDDEN,
                 "Only staff can register found items on behalf of others",
             );
+        }
+
+        if (linkedLostItemId) {
+            await assertLinkedLostItem(linkedLostItemId, ownerId);
         }
 
         const location = buildLocationString(itemPayload);
@@ -101,6 +137,7 @@ export const FoundItemService = {
                 ...visibility,
                 userId: ownerId,
                 status: FoundItemStatus.AVAILABLE,
+                linkedLostItemId: linkedLostItemId ?? null,
             },
             include: {
                 user: { select: { id: true, name: true, email: true } },
@@ -108,6 +145,16 @@ export const FoundItemService = {
         });
 
         EmbeddingService.scheduleFoundItemEmbedding(item.id);
+
+        await MatchService.notifyLostOwnersForFoundItem({
+            id: item.id,
+            title: item.title,
+            description: item.description,
+            category: item.category,
+            location: item.location,
+            dateFound: item.dateFound,
+            linkedLostItemId: item.linkedLostItemId,
+        });
 
         if (onBehalfOfUserId) {
             await AuditService.log({
@@ -118,6 +165,95 @@ export const FoundItemService = {
                 metadata: { onBehalfOfUserId },
             });
         }
+
+        return stripSecretFields(item);
+    },
+
+    createFromLostTip: async (
+        lostItemId: string,
+        payload: FinderTipPayload,
+        finderId: string,
+    ) => {
+        const lostItem = await prisma.lostItem.findUnique({
+            where: { id: lostItemId },
+            select: {
+                id: true,
+                title: true,
+                category: true,
+                userId: true,
+                status: true,
+            },
+        });
+
+        if (!lostItem) {
+            throw new AppError(StatusCodes.NOT_FOUND, "Lost item not found");
+        }
+
+        if (lostItem.userId === finderId) {
+            throw new AppError(StatusCodes.BAD_REQUEST, "You cannot report finding your own lost item");
+        }
+
+        if (lostItem.status !== LostItemStatus.OPEN && lostItem.status !== LostItemStatus.MATCHED) {
+            throw new AppError(StatusCodes.BAD_REQUEST, "This lost report is no longer open");
+        }
+
+        const existingTip = await prisma.foundItem.findFirst({
+            where: {
+                userId: finderId,
+                linkedLostItemId: lostItemId,
+                status: FoundItemStatus.AVAILABLE,
+            },
+            select: { id: true },
+        });
+
+        if (existingTip) {
+            throw new AppError(
+                StatusCodes.CONFLICT,
+                "You already reported that you may have found this item",
+            );
+        }
+
+        const note = payload.note?.trim() ?? "";
+        const location = buildLocationString(payload);
+        const visibility = resolveVisibility(lostItem.category, {});
+        const privateText =
+            note.length >= 10
+                ? note
+                : `Finder tip linked to lost report: ${lostItem.title}`;
+
+        const item = await prisma.foundItem.create({
+            data: {
+                title: `Found: ${lostItem.title}`,
+                description: note || `Someone may have found: ${lostItem.title}`,
+                privateDescription: encryptIfPresent(privateText),
+                category: lostItem.category,
+                imageUrl: payload.imageUrl ?? null,
+                location,
+                building: payload.building ?? null,
+                floor: payload.floor ?? null,
+                room: payload.room ?? null,
+                dateFound: payload.dateFound,
+                ...visibility,
+                userId: finderId,
+                status: FoundItemStatus.AVAILABLE,
+                linkedLostItemId: lostItemId,
+            },
+            include: {
+                user: { select: { id: true, name: true, email: true } },
+            },
+        });
+
+        EmbeddingService.scheduleFoundItemEmbedding(item.id);
+
+        await MatchService.notifyLostOwnersForFoundItem({
+            id: item.id,
+            title: item.title,
+            description: item.description,
+            category: item.category,
+            location: item.location,
+            dateFound: item.dateFound,
+            linkedLostItemId: lostItemId,
+        });
 
         return stripSecretFields(item);
     },

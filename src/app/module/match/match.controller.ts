@@ -37,4 +37,23 @@ const forFoundItem = catchAsync(async (req: Request, res: Response) => {
     });
 });
 
-export const MatchController = { browseSuggestions, forLostItem, forFoundItem };
+const draftMatches = catchAsync(async (req: Request, res: Response) => {
+    const { title, description, category, location, dateFound } = req.query;
+
+    const result = await MatchService.getDraftMatches({
+        title: String(title),
+        description: String(description),
+        category: category as import("../../lib/prisma-exports").ItemCategory,
+        location: String(location),
+        dateFound: new Date(String(dateFound)),
+    });
+
+    sendResponse(res, {
+        statusCode: StatusCodes.OK,
+        success: true,
+        message: "Draft match suggestions retrieved",
+        data: result,
+    });
+});
+
+export const MatchController = { browseSuggestions, forLostItem, forFoundItem, draftMatches };

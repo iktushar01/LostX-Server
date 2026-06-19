@@ -83,13 +83,17 @@ const requiredEnvVariables = [
 
 requiredEnvVariables.forEach((variable) => {
     if (!process.env[variable]) {
+        if (variable === "PORT" && process.env.VERCEL === "1") {
+            return;
+        }
+
         throw new AppError(StatusCodes.INTERNAL_SERVER_ERROR, `Environment variable ${variable} is not defined`);
     }
 });
 
 const loadEnvVariables = (): EnvConfig => {
     return {
-        PORT: process.env.PORT as string,
+        PORT: (process.env.PORT ?? (process.env.VERCEL === "1" ? "3000" : "")) as string,
         NODE_ENV: process.env.NODE_ENV as string,
         BETTER_AUTH_URL: process.env.BETTER_AUTH_URL as string,
         FRONTEND_URL: process.env.FRONTEND_URL as string,

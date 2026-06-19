@@ -1,21 +1,16 @@
 {
-  "version": 2,
-  "builds": [
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "pnpm install",
+  "crons": [
     {
-      "src": "dist/server.js",
-      "use": "@vercel/node",
-      "config": {
-        "includeFiles": [
-          "dist/generated/prisma/**",
-          "src/app/templates/**"
-        ]
-      }
+      "path": "/api/cron/expiry",
+      "schedule": "0 0 * * *"
     }
   ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "dist/server.js"
+  "functions": {
+    "src/server.ts": {
+      "maxDuration": 60,
+      "includeFiles": "src/{generated/prisma/**,app/templates/**}"
     }
-  ]
+  }
 }

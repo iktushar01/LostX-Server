@@ -3,6 +3,7 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { prisma } from "./prisma";
 import { Role, UserStatus } from "./prisma-exports";
 import { envVars } from "../../config/env";
+import { getAllowedOrigins } from "../../config/origins";
 import ms, { StringValue } from "ms";
 import { bearer, emailOTP } from "better-auth/plugins";
 import { sendEmail } from "../utils/email";
@@ -141,7 +142,7 @@ export const auth = betterAuth({
         signIn : `${envVars.BETTER_AUTH_URL}/api/v1/auth/google/success`,
     },
 
-    trustedOrigins: [process.env.BETTER_AUTH_URL || "http://localhost:5000", envVars.FRONTEND_URL],
+    trustedOrigins: getAllowedOrigins(),
 
     advanced: {
         // disableCSRFCheck: true,

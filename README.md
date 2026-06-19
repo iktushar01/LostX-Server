@@ -2,6 +2,24 @@
 
 University lost & found API built with Express, Prisma, PostgreSQL (Neon), and better-auth.
 
+## Deploy to Vercel
+
+1. Import this repository as a separate Vercel project (root directory: `LostX-Server` if using a monorepo).
+2. Copy `.env.example` to Vercel environment variables. Important production values:
+   - `NODE_ENV=production`
+   - `BETTER_AUTH_URL` — your deployed API URL (e.g. `https://lostx-api.vercel.app`)
+   - `FRONTEND_URL` — your deployed client URL (e.g. `https://lostx.vercel.app`)
+   - `GOOGLE_CALLBACK_URL` — `{BETTER_AUTH_URL}/api/v1/auth/google/callback` (or your OAuth callback path)
+   - `CRON_SECRET` — random secret for the daily item-expiry cron (`openssl rand -hex 32`)
+   - `DATABASE_URL` — Neon PostgreSQL connection string with `pgvector` enabled
+3. Run database migrations before first deploy:
+   ```bash
+   npx prisma migrate deploy
+   ```
+4. Deploy. Vercel detects `src/server.ts` as the Express entry point.
+
+Preview deployments automatically allow the current `VERCEL_URL` for CORS and better-auth. For extra preview domains, set `ALLOWED_ORIGINS` as a comma-separated list.
+
 ## Chatbot (RAG + pgvector)
 
 The AI chatbot helps users find lost or found items using semantic search and OpenRouter.

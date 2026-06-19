@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "prisma generate && tsx watch src/server.ts",
     "start": "tsx src/server.ts",
+    "postinstall": "prisma generate",
     "build": "prisma generate && tsc && node scripts/copy-generated-prisma.js && node scripts/fix-imports.js",
     "backfill:embeddings": "tsx scripts/backfill-embeddings.ts"
   },

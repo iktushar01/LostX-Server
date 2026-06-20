@@ -4,7 +4,16 @@ import { envVars } from "../../config/env.js";
 
 const connectionString = `${envVars.DATABASE_URL}`;
 
-const adapter = new PrismaPg({ connectionString });
-const prisma = new PrismaClient({ adapter });
+const globalForPrisma = globalThis as unknown as {
+  prisma?: InstanceType<typeof PrismaClient>;
+};
+
+const createPrismaClient = () => {
+  const adapter = new PrismaPg({ connectionString });
+  return new PrismaClient({ adapter });
+};
+
+const prisma = globalForPrisma.prisma ?? createPrismaClient();
+globalForPrisma.prisma = prisma;
 
 export { prisma };

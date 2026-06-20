@@ -1,12 +1,10 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "pnpm run vercel-build",
   "functions": {
     "src/server.ts": {
       "maxDuration": 60,
-      "includeFiles": [
-        "src/generated/prisma/**",
-        "src/app/templates/**"
-      ]
+      "includeFiles": "src/{generated/prisma/**,app/templates/**}"
     }
   },
   "crons": [

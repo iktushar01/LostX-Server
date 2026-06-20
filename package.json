@@ -14,6 +14,7 @@
     "start": "tsx src/server.ts",
     "postinstall": "prisma generate",
     "build": "prisma generate && tsc && node scripts/copy-generated-prisma.js && node scripts/fix-imports.js",
+    "vercel-build": "prisma generate",
     "backfill:embeddings": "tsx scripts/backfill-embeddings.ts"
   },
   "dependencies": {

@@ -11,10 +11,10 @@
   "main": "src/server.ts",
   "scripts": {
     "dev": "prisma generate && tsx watch src/server.ts",
-    "start": "tsx src/server.ts",
+    "start": "node dist/server.js",
     "postinstall": "prisma generate",
-    "build": "prisma generate && tsc && node scripts/copy-generated-prisma.js && node scripts/fix-imports.js",
-    "vercel-build": "prisma generate",
+    "build": "prisma generate && tsc && node scripts/copy-generated-prisma.js && node scripts/copy-assets.js && node scripts/fix-imports.js",
+    "vercel-build": "npm run build",
     "backfill:embeddings": "tsx scripts/backfill-embeddings.ts"
   },
   "dependencies": {

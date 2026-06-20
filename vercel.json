@@ -1,21 +1,23 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "pnpm run vercel-build",
+  "buildCommand": "npm run vercel-build",
   "version": 2,
   "builds": [
     {
-      "src": "src/server.ts",
+      "src": "dist/server.js",
       "use": "@vercel/node",
       "config": {
         "maxDuration": 60,
-        "includeFiles": "src/**"
+        "includeFiles": [
+          "dist/**"
+        ]
       }
     }
   ],
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "src/server.ts"
+      "dest": "dist/server.js"
     }
   ],
   "crons": [

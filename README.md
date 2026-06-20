@@ -27,7 +27,7 @@ If you see `404: NOT_FOUND`:
 
 If you see `ERR_MODULE_NOT_FOUND` for paths like `src/config/origins` (no `.js` suffix):
 
-- Open **Project Settings → General** and clear any custom **Build Command** or **Output Directory** (e.g. `dist`, `.next`, `public`). Those turn the deploy into a static site with no API.
+ - Open **Project Settings → General** and clear any custom **Build Command** or **Output Directory** (e.g. `dist`, `.next`, `public`). Those turn the deploy into a static site with no API.
 - Confirm **Root Directory** is correct (`.` for this repo, or `LostX-Server` if inside a monorepo).
 - Redeploy after pushing `src/index.ts` and the latest `vercel.json`.
 - In **Deployments → Build Logs**, confirm `postinstall` ran `prisma generate` successfully.

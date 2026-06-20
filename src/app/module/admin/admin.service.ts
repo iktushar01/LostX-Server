@@ -1,12 +1,12 @@
-import type { Prisma as PrismaNamespace } from "../../../generated/prisma/index";
-import { prisma } from "../../lib/prisma";
+import type { Prisma as PrismaNamespace } from "../../../generated/prisma/index.js";
+import { prisma } from "../../lib/prisma.js";
 import {
     AuditAction,
     ClaimStatus,
     FoundItemStatus,
     LostItemStatus,
-} from "../../lib/prisma-exports";
-import { AuditService } from "../audit/audit.service";
+} from "../../lib/prisma-exports.js";
+import { AuditService } from "../audit/audit.service.js";
 
 type ItemType = "lost" | "found";
 

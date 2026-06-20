@@ -1,13 +1,13 @@
 import { Router } from "express";
-import { Role } from "../../lib/prisma-exports";
-import { checkAuth } from "../../middleware/checkAuth";
-import { validateRequest } from "../../middleware/validateRequest";
-import { ClaimMessageController } from "../claim-message/claim-message.controller";
-import { ClaimController } from "./claim.controller";
+import { Role } from "../../lib/prisma-exports.js";
+import { checkAuth } from "../../middleware/checkAuth.js";
+import { validateRequest } from "../../middleware/validateRequest.js";
+import { ClaimMessageController } from "../claim-message/claim-message.controller.js";
+import { ClaimController } from "./claim.controller.js";
 import {
     claimMessageParamSchema,
     createClaimMessageZodSchema,
-} from "../claim-message/claim-message.validation";
+} from "../claim-message/claim-message.validation.js";
 import {
     claimIdParamSchema,
     createClaimZodSchema,
@@ -15,7 +15,7 @@ import {
     updateClaimStatusZodSchema,
     verificationQuestionsZodSchema,
     verificationQuestionsPreviewZodSchema,
-} from "./claim.validation";
+} from "./claim.validation.js";
 
 const router = Router();
 const allRoles = [Role.CLIENT, Role.STAFF, Role.ADMIN, Role.SUPER_ADMIN] as const;

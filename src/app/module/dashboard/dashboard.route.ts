@@ -1,7 +1,7 @@
 import { Router } from "express";
-import { Role } from "../../lib/prisma-exports";
-import { checkAuth } from "../../middleware/checkAuth";
-import { DashboardController } from "./dashboard.controller";
+import { Role } from "../../lib/prisma-exports.js";
+import { checkAuth } from "../../middleware/checkAuth.js";
+import { DashboardController } from "./dashboard.controller.js";
 
 const router = Router();
 const allRoles = [Role.CLIENT, Role.ADMIN, Role.SUPER_ADMIN] as const;

@@ -1,20 +1,20 @@
 import { Prisma } from "../../../generated/prisma/index.js";
-import { Role, UserStatus } from "../../lib/prisma-exports";
-import AppError from "../../errorHelpers/AppError";
-import { auth } from "../../lib/auth";
-import { prisma } from "../../lib/prisma";
+import { Role, UserStatus } from "../../lib/prisma-exports.js";
+import AppError from "../../errorHelpers/AppError.js";
+import { auth } from "../../lib/auth.js";
+import { prisma } from "../../lib/prisma.js";
 import { StatusCodes } from "http-status-codes";
-import { tokenUtils } from "../../utils/token";
-import { jwtUtils } from "../../utils/jwt";
-import { envVars } from "../../../config/env";
-import { uploadFileToCloudinary, deleteFileFromCloudinary } from "../../../config/cloudinary.config";
+import { tokenUtils } from "../../utils/token.js";
+import { jwtUtils } from "../../utils/jwt.js";
+import { envVars } from "../../../config/env.js";
+import { uploadFileToCloudinary, deleteFileFromCloudinary } from "../../../config/cloudinary.config.js";
 import {
     IChangePassWordPayload,
     ILoginUser,
     IRegisterClient,
     IRequestUser,
     IUpdateProfilePayload,
-} from "./auth.interface";
+} from "./auth.interface.js";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 

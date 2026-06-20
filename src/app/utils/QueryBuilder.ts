@@ -8,7 +8,7 @@ import {
   PrismaNumberFilter,
   PrismaStringFilter,
   PrismaWhereConditions,
-} from "../interfaces/query.interface";
+} from "../interfaces/query.interface.js";
 
 /**
  * QueryBuilder

@@ -1,17 +1,17 @@
 import { Router } from "express";
-import { Role } from "../../lib/prisma-exports";
-import { checkAuth } from "../../middleware/checkAuth";
-import { optionalCheckAuth } from "../../middleware/optionalCheckAuth";
-import { validateRequest } from "../../middleware/validateRequest";
-import { memoryUpload } from "../../../config/multer.config";
-import { FoundItemController } from "./found-item.controller";
+import { Role } from "../../lib/prisma-exports.js";
+import { checkAuth } from "../../middleware/checkAuth.js";
+import { optionalCheckAuth } from "../../middleware/optionalCheckAuth.js";
+import { validateRequest } from "../../middleware/validateRequest.js";
+import { memoryUpload } from "../../../config/multer.config.js";
+import { FoundItemController } from "./found-item.controller.js";
 import {
     createFoundItemZodSchema,
     finderTipZodSchema,
     foundItemIdParamSchema,
     lostItemIdParamSchema,
     updateFoundItemZodSchema,
-} from "./found-item.validation";
+} from "./found-item.validation.js";
 
 const router = Router();
 const allRoles = [Role.CLIENT, Role.STAFF, Role.ADMIN, Role.SUPER_ADMIN] as const;

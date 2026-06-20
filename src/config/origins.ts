@@ -1,4 +1,4 @@
-import { envVars } from "./env";
+import { envVars } from "./env.js";
 
 const LOCAL_ORIGINS = ["http://localhost:3000", "http://localhost:5000"];
 

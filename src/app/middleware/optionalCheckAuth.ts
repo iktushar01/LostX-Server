@@ -1,8 +1,8 @@
 import { NextFunction, Request, Response } from "express";
-import { prisma } from "../lib/prisma";
-import { jwtUtils } from "../utils/jwt";
-import { cookieUtils } from "../utils/cookies";
-import { envVars } from "../../config/env";
+import { prisma } from "../lib/prisma.js";
+import { jwtUtils } from "../utils/jwt.js";
+import { cookieUtils } from "../utils/cookies.js";
+import { envVars } from "../../config/env.js";
 
 /**
  * Attempts to attach req.user when credentials are present.

@@ -1,7 +1,7 @@
 import { Response } from "express";
-import { envVars } from "../../config/env";
-import { cookieUtils } from "./cookies";
-import { jwtUtils } from "./jwt";
+import { envVars } from "../../config/env.js";
+import { cookieUtils } from "./cookies.js";
+import { jwtUtils } from "./jwt.js";
 import { JwtPayload } from "jsonwebtoken";
 import ms, { StringValue } from 'ms';
 

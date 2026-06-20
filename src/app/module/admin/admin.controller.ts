@@ -1,9 +1,9 @@
 import { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
-import { catchAsync } from "../../shared/catchAsync";
-import { sendResponse } from "../../shared/sendResponse";
-import { IRequestUser } from "../auth/auth.interface";
-import { AdminService } from "./admin.service";
+import { catchAsync } from "../../shared/catchAsync.js";
+import { sendResponse } from "../../shared/sendResponse.js";
+import { IRequestUser } from "../auth/auth.interface.js";
+import { AdminService } from "./admin.service.js";
 
 const getStats = catchAsync(async (_req: Request, res: Response) => {
     const result = await AdminService.getStats();

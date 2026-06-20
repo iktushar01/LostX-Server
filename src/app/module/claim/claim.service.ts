@@ -1,30 +1,30 @@
 import { randomBytes } from "crypto";
 import { StatusCodes } from "http-status-codes";
-import { prisma } from "../../lib/prisma";
+import { prisma } from "../../lib/prisma.js";
 import {
     AuditAction,
     ClaimStatus,
     FoundItemStatus,
     ItemCategory,
     LostItemStatus,
-} from "../../lib/prisma-exports";
-import AppError from "../../errorHelpers/AppError";
-import { isStaffOrAdmin } from "../../utils/auth-roles.util";
-import { buildLocationString } from "../../utils/location.util";
-import { AuditService } from "../audit/audit.service";
-import { scoreLostFoundPair } from "../match/match.service";
-import { NotificationService } from "../notification/notification.service";
-import { decryptText } from "../../utils/encryption.util";
+} from "../../lib/prisma-exports.js";
+import AppError from "../../errorHelpers/AppError.js";
+import { isStaffOrAdmin } from "../../utils/auth-roles.util.js";
+import { buildLocationString } from "../../utils/location.util.js";
+import { AuditService } from "../audit/audit.service.js";
+import { scoreLostFoundPair } from "../match/match.service.js";
+import { NotificationService } from "../notification/notification.service.js";
+import { decryptText } from "../../utils/encryption.util.js";
 import {
     VerificationAiService,
     type AiVerificationAnswer,
     type AiVerificationQuestion,
-} from "./verification-ai.service";
-import { encryptIfPresent } from "../../utils/encryption.util";
+} from "./verification-ai.service.js";
+import { encryptIfPresent } from "../../utils/encryption.util.js";
 import {
     defaultVisibilityForCategory,
     parseVisibilityFlag,
-} from "../../utils/visibility-defaults.util";
+} from "../../utils/visibility-defaults.util.js";
 
 type CreateClaimPayload = {
     foundItemId: string;
@@ -598,7 +598,7 @@ export const ClaimService = {
     },
 
     listAll: async (filters?: { search?: string; status?: ClaimStatus }) => {
-        const where: import("../../../generated/prisma/index").Prisma.ClaimWhereInput = {};
+        const where: import("../../../generated/prisma/index.js").Prisma.ClaimWhereInput = {};
 
         if (filters?.status) {
             where.status = filters.status;

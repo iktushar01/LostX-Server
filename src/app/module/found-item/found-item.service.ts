@@ -1,23 +1,23 @@
 import { StatusCodes } from "http-status-codes";
-import { prisma } from "../../lib/prisma";
-import { FoundItemStatus, ItemCategory, Role, ClaimStatus, LostItemStatus } from "../../lib/prisma-exports";
-import AppError from "../../errorHelpers/AppError";
-import { QueryBuilder } from "../../utils/QueryBuilder";
-import { NotificationService } from "../notification/notification.service";
-import { MatchService } from "../match/match.service";
-import { EmbeddingService } from "../chatbot/embedding.service";
-import { DuplicateService } from "../duplicate/duplicate.service";
-import { buildLocationString } from "../../utils/location.util";
-import { applyFoundItemLocationPrivacy, type PublicItem } from "../../utils/item-privacy.util";
-import { isStaffOrAdmin } from "../../utils/auth-roles.util";
-import { AuditService } from "../audit/audit.service";
-import { AuditAction } from "../../lib/prisma-exports";
-import { encryptIfPresent } from "../../utils/encryption.util";
-import { stripSecretFields, withDecryptedPrivateDescription } from "../../utils/item-secrets.util";
+import { prisma } from "../../lib/prisma.js";
+import { FoundItemStatus, ItemCategory, Role, ClaimStatus, LostItemStatus } from "../../lib/prisma-exports.js";
+import AppError from "../../errorHelpers/AppError.js";
+import { QueryBuilder } from "../../utils/QueryBuilder.js";
+import { NotificationService } from "../notification/notification.service.js";
+import { MatchService } from "../match/match.service.js";
+import { EmbeddingService } from "../chatbot/embedding.service.js";
+import { DuplicateService } from "../duplicate/duplicate.service.js";
+import { buildLocationString } from "../../utils/location.util.js";
+import { applyFoundItemLocationPrivacy, type PublicItem } from "../../utils/item-privacy.util.js";
+import { isStaffOrAdmin } from "../../utils/auth-roles.util.js";
+import { AuditService } from "../audit/audit.service.js";
+import { AuditAction } from "../../lib/prisma-exports.js";
+import { encryptIfPresent } from "../../utils/encryption.util.js";
+import { stripSecretFields, withDecryptedPrivateDescription } from "../../utils/item-secrets.util.js";
 import {
     defaultVisibilityForCategory,
     parseVisibilityFlag,
-} from "../../utils/visibility-defaults.util";
+} from "../../utils/visibility-defaults.util.js";
 
 type CreateFoundItemPayload = {
     title: string;
@@ -315,7 +315,7 @@ export const FoundItemService = {
     list: async (query: Record<string, unknown>, viewerUserId?: string, viewerRole?: string) => {
         const hasStatusFilter = query.status !== undefined && query.status !== "";
 
-        const result = await new QueryBuilder(prisma.foundItem as import("../../interfaces/query.interface").PrismaModelDelegate, query, {
+        const result = await new QueryBuilder(prisma.foundItem as import("../../interfaces/query.interface.js").PrismaModelDelegate, query, {
             searchableFields: ["title", "description", "location"],
             filterableFields: ["category", "status", "isFeatured"],
         })

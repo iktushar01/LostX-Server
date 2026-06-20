@@ -1,6 +1,6 @@
 import { StatusCodes } from "http-status-codes";
-import AppError from "../../errorHelpers/AppError";
-import { OpenRouterService } from "../chatbot/openrouter.service";
+import AppError from "../../errorHelpers/AppError.js";
+import { OpenRouterService } from "../chatbot/openrouter.service.js";
 
 export type AiVerificationQuestion = {
     id: string;

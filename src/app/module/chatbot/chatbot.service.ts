@@ -1,17 +1,17 @@
-import { prisma } from "../../lib/prisma";
-import { envVars } from "../../../config/env";
-import type { ChatbotMatch, ChatbotResponse, ReindexResult } from "./chatbot.interface";
-import { detectSearchIntent, getIntentGuidance } from "./chatbot.intent";
-import { enrichMatchesWithRuleScores } from "./chatbot.match-enrichment";
+import { prisma } from "../../lib/prisma.js";
+import { envVars } from "../../../config/env.js";
+import type { ChatbotMatch, ChatbotResponse, ReindexResult } from "./chatbot.interface.js";
+import { detectSearchIntent, getIntentGuidance } from "./chatbot.intent.js";
+import { enrichMatchesWithRuleScores } from "./chatbot.match-enrichment.js";
 import {
     buildFallbackAnswer,
     buildRagContext,
     CHATBOT_SYSTEM_PROMPT,
-} from "./chatbot.utils";
-import { EmbeddingService } from "./embedding.service";
-import { KeywordSearchService } from "./keyword-search.service";
-import { OpenRouterService } from "./openrouter.service";
-import { VectorSearchService } from "./vector-search.service";
+} from "./chatbot.utils.js";
+import { EmbeddingService } from "./embedding.service.js";
+import { KeywordSearchService } from "./keyword-search.service.js";
+import { OpenRouterService } from "./openrouter.service.js";
+import { VectorSearchService } from "./vector-search.service.js";
 
 const mergeMatches = (
     primary: ChatbotMatch[],

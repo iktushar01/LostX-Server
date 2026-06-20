@@ -1,4 +1,4 @@
-import { UserRole } from "../lib/prisma-exports";
+import { UserRole } from "../lib/prisma-exports.js";
 
 /** Roles that can perform lost-and-found desk operations (claims, item moderation). */
 export const isStaffOrAdmin = (role: string): boolean =>

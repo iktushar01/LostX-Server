@@ -1,14 +1,14 @@
 import { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
-import { envVars } from "../../../config/env";
-import { catchAsync } from "../../shared/catchAsync";
-import { sendResponse } from "../../shared/sendResponse";
-import { cookieUtils } from "../../utils/cookies";
-import { tokenUtils } from "../../utils/token";
-import { auth } from "../../lib/auth";
-import AppError from "../../errorHelpers/AppError";
-import { IRequestUser } from "./auth.interface";
-import { AuthService } from "./auth.service";
+import { envVars } from "../../../config/env.js";
+import { catchAsync } from "../../shared/catchAsync.js";
+import { sendResponse } from "../../shared/sendResponse.js";
+import { cookieUtils } from "../../utils/cookies.js";
+import { tokenUtils } from "../../utils/token.js";
+import { auth } from "../../lib/auth.js";
+import AppError from "../../errorHelpers/AppError.js";
+import { IRequestUser } from "./auth.interface.js";
+import { AuthService } from "./auth.service.js";
 import ms, { StringValue } from "ms";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

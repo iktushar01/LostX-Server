@@ -1,11 +1,11 @@
 import { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
-import { catchAsync } from "../../shared/catchAsync";
-import { sendResponse } from "../../shared/sendResponse";
-import { IRequestUser } from "../auth/auth.interface";
-import { UserProfileService } from "./user-profile.service";
-import { UserReviewService } from "../user-review/user-review.service";
-import { UserReportService } from "../user-report/user-report.service";
+import { catchAsync } from "../../shared/catchAsync.js";
+import { sendResponse } from "../../shared/sendResponse.js";
+import { IRequestUser } from "../auth/auth.interface.js";
+import { UserProfileService } from "./user-profile.service.js";
+import { UserReviewService } from "../user-review/user-review.service.js";
+import { UserReportService } from "../user-report/user-report.service.js";
 
 const getAccountSummary = catchAsync(async (req: Request, res: Response) => {
     const user = req.user as IRequestUser;
@@ -92,7 +92,7 @@ const createReport = catchAsync(async (req: Request, res: Response) => {
 });
 
 const listReportsAdmin = catchAsync(async (req: Request, res: Response) => {
-    const status = req.query.status as import("../../lib/prisma-exports").UserReportStatus | undefined;
+    const status = req.query.status as import("../../lib/prisma-exports.js").UserReportStatus | undefined;
     const result = await UserReportService.listForAdmin(status);
 
     sendResponse(res, {

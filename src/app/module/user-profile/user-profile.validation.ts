@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { TrustFlag, UserReportReason, UserReportStatus } from "../../lib/prisma-exports";
+import { TrustFlag, UserReportReason, UserReportStatus } from "../../lib/prisma-exports.js";
 
 export const userIdParamSchema = z.object({
     id: z.string().min(1),

@@ -1,5 +1,5 @@
-import { uploadFileToCloudinary } from "../../config/cloudinary.config";
-import AppError from "../errorHelpers/AppError";
+import { uploadFileToCloudinary } from "../../config/cloudinary.config.js";
+import AppError from "../errorHelpers/AppError.js";
 import { StatusCodes } from "http-status-codes";
 
 /**

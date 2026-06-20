@@ -1,5 +1,5 @@
-import { prisma } from "../../lib/prisma";
-import type { AuditAction } from "../../lib/prisma-exports";
+import { prisma } from "../../lib/prisma.js";
+import type { AuditAction } from "../../lib/prisma-exports.js";
 
 type AuditInput = {
     actorId: string;

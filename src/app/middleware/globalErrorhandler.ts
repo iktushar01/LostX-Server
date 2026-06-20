@@ -3,10 +3,10 @@ import { NextFunction, Request, Response } from "express";
 import multer from "multer";
 import { StatusCodes } from "http-status-codes";
 import z from "zod";
-import AppError from "../errorHelpers/AppError";
-import { envVars } from "../../config/env";
-import handleZodError from "../errorHelpers/handlezoderror";
-import { TErrorResponse, TErrorSource } from "../interfaces/error.interfaces";
+import AppError from "../errorHelpers/AppError.js";
+import { envVars } from "../../config/env.js";
+import handleZodError from "../errorHelpers/handlezoderror.js";
+import { TErrorResponse, TErrorSource } from "../interfaces/error.interfaces.js";
 import { isAPIError } from "better-auth/api";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

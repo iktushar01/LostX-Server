@@ -1,4 +1,4 @@
-import type { ChatbotMatch, ItemEmbeddingType } from "./chatbot.interface";
+import type { ChatbotMatch, ItemEmbeddingType } from "./chatbot.interface.js";
 
 /** Format a float embedding array for PostgreSQL pgvector literals. */
 export const toPgVectorLiteral = (embedding: number[]): string =>

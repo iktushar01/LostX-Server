@@ -1,7 +1,7 @@
-import { prisma } from "../../lib/prisma";
-import type { ItemEmbeddingFields, ItemEmbeddingType } from "./chatbot.interface";
-import { buildItemEmbeddingText, toPgVectorLiteral } from "./chatbot.utils";
-import { OpenRouterService } from "./openrouter.service";
+import { prisma } from "../../lib/prisma.js";
+import type { ItemEmbeddingFields, ItemEmbeddingType } from "./chatbot.interface.js";
+import { buildItemEmbeddingText, toPgVectorLiteral } from "./chatbot.utils.js";
+import { OpenRouterService } from "./openrouter.service.js";
 
 const scheduleEmbedding = (task: () => Promise<void>, label: string) => {
     void task().catch((error: unknown) => {

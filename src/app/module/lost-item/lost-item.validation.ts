@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ItemCategory } from "../../lib/prisma-exports";
+import { ItemCategory } from "../../lib/prisma-exports.js";
 
 const visibilitySchema = z
     .union([z.boolean(), z.enum(["true", "false", "1", "0"])])

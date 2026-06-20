@@ -1,7 +1,7 @@
 import axios from "axios";
 import { StatusCodes } from "http-status-codes";
-import { envVars } from "../../../config/env";
-import AppError from "../../errorHelpers/AppError";
+import { envVars } from "../../../config/env.js";
+import AppError from "../../errorHelpers/AppError.js";
 
 type OpenRouterEmbeddingResponse = {
     data?: Array<{ embedding?: number[] }>;

@@ -1,9 +1,9 @@
 import { Router } from "express";
 import { z } from "zod";
-import { ItemCategory, Role } from "../../lib/prisma-exports";
-import { checkAuth } from "../../middleware/checkAuth";
-import { validateRequest } from "../../middleware/validateRequest";
-import { MatchController } from "./match.controller";
+import { ItemCategory, Role } from "../../lib/prisma-exports.js";
+import { checkAuth } from "../../middleware/checkAuth.js";
+import { validateRequest } from "../../middleware/validateRequest.js";
+import { MatchController } from "./match.controller.js";
 
 const router = Router();
 const allRoles = [Role.CLIENT, Role.STAFF, Role.ADMIN, Role.SUPER_ADMIN] as const;

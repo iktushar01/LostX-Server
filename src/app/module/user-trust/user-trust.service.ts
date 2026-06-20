@@ -1,10 +1,10 @@
-import { prisma } from "../../lib/prisma";
+import { prisma } from "../../lib/prisma.js";
 import {
     ClaimStatus,
     FoundItemStatus,
     TrustFlag,
     UserStatus,
-} from "../../lib/prisma-exports";
+} from "../../lib/prisma-exports.js";
 
 export type TrustTier = "NEW" | "VERIFIED" | "TRUSTED" | "FLAGGED";
 

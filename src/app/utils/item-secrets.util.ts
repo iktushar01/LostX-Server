@@ -1,4 +1,4 @@
-import { decryptText } from "./encryption.util";
+import { decryptText } from "./encryption.util.js";
 
 type ItemWithSecrets = {
     privateDescription?: string | null;

@@ -1,8 +1,8 @@
 import { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
-import { catchAsync } from "../../shared/catchAsync";
-import { sendResponse } from "../../shared/sendResponse";
-import { ChatbotService } from "./chatbot.service";
+import { catchAsync } from "../../shared/catchAsync.js";
+import { sendResponse } from "../../shared/sendResponse.js";
+import { ChatbotService } from "./chatbot.service.js";
 
 const chat = catchAsync(async (req: Request, res: Response) => {
     const userId = req.user?.userId;

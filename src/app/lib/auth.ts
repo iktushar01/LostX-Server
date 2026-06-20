@@ -1,12 +1,12 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import { prisma } from "./prisma";
-import { Role, UserStatus } from "./prisma-exports";
-import { envVars } from "../../config/env";
-import { getAllowedOrigins } from "../../config/origins";
+import { prisma } from "./prisma.js";
+import { Role, UserStatus } from "./prisma-exports.js";
+import { envVars } from "../../config/env.js";
+import { getAllowedOrigins } from "../../config/origins.js";
 import ms, { StringValue } from "ms";
 import { bearer, emailOTP } from "better-auth/plugins";
-import { sendEmail } from "../utils/email";
+import { sendEmail } from "../utils/email.js";
 
 export const auth = betterAuth({
     baseURL : envVars.BETTER_AUTH_URL,

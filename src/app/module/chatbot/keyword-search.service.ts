@@ -1,12 +1,12 @@
-import { prisma } from "../../lib/prisma";
-import { envVars } from "../../../config/env";
-import type { ChatbotMatch } from "./chatbot.interface";
-import type { SearchScope } from "./chatbot.intent";
+import { prisma } from "../../lib/prisma.js";
+import { envVars } from "../../../config/env.js";
+import type { ChatbotMatch } from "./chatbot.interface.js";
+import type { SearchScope } from "./chatbot.intent.js";
 import {
     extractSearchTerms,
     phraseToCategoryHints,
     scoreKeywordMatch,
-} from "./chatbot.utils";
+} from "./chatbot.utils.js";
 
 const toMatch = (
     item: {
@@ -58,7 +58,7 @@ export const KeywordSearchService = {
                 { location: { contains: term, mode: "insensitive" as const } },
             ]),
             ...categoryHints.map((category) => ({
-                category: category as import("../../lib/prisma-exports").ItemCategory,
+                category: category as import("../../lib/prisma-exports.js").ItemCategory,
             })),
         ];
 

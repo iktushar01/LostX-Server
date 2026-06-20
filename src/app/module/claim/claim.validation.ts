@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ClaimStatus, ItemCategory } from "../../lib/prisma-exports";
+import { ClaimStatus, ItemCategory } from "../../lib/prisma-exports.js";
 
 const aiAnswerSchema = z.object({
     id: z.string().min(1),

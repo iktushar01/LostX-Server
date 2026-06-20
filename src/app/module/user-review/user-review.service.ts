@@ -1,7 +1,7 @@
 import { StatusCodes } from "http-status-codes";
-import { prisma } from "../../lib/prisma";
-import { ClaimStatus, FoundItemStatus } from "../../lib/prisma-exports";
-import AppError from "../../errorHelpers/AppError";
+import { prisma } from "../../lib/prisma.js";
+import { ClaimStatus, FoundItemStatus } from "../../lib/prisma-exports.js";
+import AppError from "../../errorHelpers/AppError.js";
 
 type CreateReviewPayload = {
     claimId: string;

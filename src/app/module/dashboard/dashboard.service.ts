@@ -1,5 +1,5 @@
-import { prisma } from "../../lib/prisma";
-import { ClaimStatus } from "../../lib/prisma-exports";
+import { prisma } from "../../lib/prisma.js";
+import { ClaimStatus } from "../../lib/prisma-exports.js";
 
 export const DashboardService = {
     getUserStats: async (userId: string) => {

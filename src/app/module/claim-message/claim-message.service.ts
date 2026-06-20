@@ -1,7 +1,7 @@
 import { StatusCodes } from "http-status-codes";
-import { prisma } from "../../lib/prisma";
-import { ClaimStatus, Role } from "../../lib/prisma-exports";
-import AppError from "../../errorHelpers/AppError";
+import { prisma } from "../../lib/prisma.js";
+import { ClaimStatus, Role } from "../../lib/prisma-exports.js";
+import AppError from "../../errorHelpers/AppError.js";
 
 const canAccessClaim = (
     claimUserId: string,

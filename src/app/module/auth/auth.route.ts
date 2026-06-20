@@ -1,9 +1,9 @@
 import { Router } from "express";
-import { Role } from "../../lib/prisma-exports";
-import { checkAuth } from "../../middleware/checkAuth";
-import { validateRequest } from "../../middleware/validateRequest";
-import { memoryUpload } from "../../../config/multer.config";
-import { AuthController } from "./auth.controller";
+import { Role } from "../../lib/prisma-exports.js";
+import { checkAuth } from "../../middleware/checkAuth.js";
+import { validateRequest } from "../../middleware/validateRequest.js";
+import { memoryUpload } from "../../../config/multer.config.js";
+import { AuthController } from "./auth.controller.js";
 import { 
     registerClientZodSchema,
     loginZodSchema,
@@ -14,7 +14,7 @@ import {
  changePasswordZodSchema,
     updateProfileZodSchema,
     deleteAccountZodSchema,
- } from "./auth.validation";
+ } from "./auth.validation.js";
 
 
 

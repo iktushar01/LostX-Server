@@ -1,9 +1,9 @@
 import { Router } from "express";
-import { Role } from "../../lib/prisma-exports";
-import { checkAuth } from "../../middleware/checkAuth";
-import { validateRequest } from "../../middleware/validateRequest";
-import { AdminController } from "./admin.controller";
-import { adminFeatureItemZodSchema, adminItemTypeParamSchema } from "./admin.validation";
+import { Role } from "../../lib/prisma-exports.js";
+import { checkAuth } from "../../middleware/checkAuth.js";
+import { validateRequest } from "../../middleware/validateRequest.js";
+import { AdminController } from "./admin.controller.js";
+import { adminFeatureItemZodSchema, adminItemTypeParamSchema } from "./admin.validation.js";
 
 const router = Router();
 const staffAndAdminRoles = [Role.STAFF, Role.ADMIN, Role.SUPER_ADMIN] as const;

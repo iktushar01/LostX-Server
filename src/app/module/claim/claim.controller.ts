@@ -1,10 +1,10 @@
 import { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
-import { ClaimStatus } from "../../lib/prisma-exports";
-import { catchAsync } from "../../shared/catchAsync";
-import { sendResponse } from "../../shared/sendResponse";
-import { IRequestUser } from "../auth/auth.interface";
-import { ClaimService } from "./claim.service";
+import { ClaimStatus } from "../../lib/prisma-exports.js";
+import { catchAsync } from "../../shared/catchAsync.js";
+import { sendResponse } from "../../shared/sendResponse.js";
+import { IRequestUser } from "../auth/auth.interface.js";
+import { ClaimService } from "./claim.service.js";
 
 const generateVerificationQuestionsPreview = catchAsync(async (req: Request, res: Response) => {
     const user = req.user as IRequestUser;

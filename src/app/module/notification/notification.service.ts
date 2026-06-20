@@ -1,7 +1,7 @@
-import { prisma } from "../../lib/prisma";
-import { NotificationType, UserRole } from "../../lib/prisma-exports";
-import { sendEmail } from "../../utils/email";
-import { envVars } from "../../../config/env";
+import { prisma } from "../../lib/prisma.js";
+import { NotificationType, UserRole } from "../../lib/prisma-exports.js";
+import { sendEmail } from "../../utils/email.js";
+import { envVars } from "../../../config/env.js";
 
 type CreateNotificationInput = {
     userId: string;

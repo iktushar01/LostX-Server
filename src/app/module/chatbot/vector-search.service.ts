@@ -1,9 +1,9 @@
-import { Prisma } from "../../lib/prisma-exports";
-import { prisma } from "../../lib/prisma";
-import { envVars } from "../../../config/env";
-import type { ChatbotMatch } from "./chatbot.interface";
-import type { SearchScope } from "./chatbot.intent";
-import { toPgVectorLiteral } from "./chatbot.utils";
+import { Prisma } from "../../lib/prisma-exports.js";
+import { prisma } from "../../lib/prisma.js";
+import { envVars } from "../../../config/env.js";
+import type { ChatbotMatch } from "./chatbot.interface.js";
+import type { SearchScope } from "./chatbot.intent.js";
+import { toPgVectorLiteral } from "./chatbot.utils.js";
 
 type VectorRow = {
     id: string;

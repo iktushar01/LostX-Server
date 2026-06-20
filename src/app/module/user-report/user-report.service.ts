@@ -1,12 +1,12 @@
 import { StatusCodes } from "http-status-codes";
-import { prisma } from "../../lib/prisma";
+import { prisma } from "../../lib/prisma.js";
 import {
     TrustFlag,
     UserReportReason,
     UserReportStatus,
     UserStatus,
-} from "../../lib/prisma-exports";
-import AppError from "../../errorHelpers/AppError";
+} from "../../lib/prisma-exports.js";
+import AppError from "../../errorHelpers/AppError.js";
 
 type CreateReportPayload = {
     reportedId: string;

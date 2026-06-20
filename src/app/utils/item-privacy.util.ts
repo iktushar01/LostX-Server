@@ -1,10 +1,10 @@
-import { ItemCategory } from "../lib/prisma-exports";
-import { buildPublicAreaLabel } from "./location.util";
+import { ItemCategory } from "../lib/prisma-exports.js";
+import { buildPublicAreaLabel } from "./location.util.js";
 import {
     blurImageUrl,
     isSensitiveCategory,
     LOCATION_HIDDEN_LABEL,
-} from "./privacy.util";
+} from "./privacy.util.js";
 
 export { isSensitiveCategory };
 

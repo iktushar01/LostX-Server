@@ -1,7 +1,7 @@
-import { prisma } from "../../lib/prisma";
-import { AuditAction, FoundItemStatus, LostItemStatus, UserRole } from "../../lib/prisma-exports";
-import { envVars } from "../../../config/env";
-import { AuditService } from "../audit/audit.service";
+import { prisma } from "../../lib/prisma.js";
+import { AuditAction, FoundItemStatus, LostItemStatus, UserRole } from "../../lib/prisma-exports.js";
+import { envVars } from "../../../config/env.js";
+import { AuditService } from "../audit/audit.service.js";
 
 export const ExpiryService = {
     archiveStaleItems: async () => {

@@ -1,4 +1,4 @@
-import { ItemCategory } from "../lib/prisma-exports";
+import { ItemCategory } from "../lib/prisma-exports.js";
 
 const SENSITIVE_CATEGORIES = new Set<ItemCategory>([
     ItemCategory.ID_CARD,

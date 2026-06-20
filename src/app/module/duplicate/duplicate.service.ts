@@ -1,8 +1,8 @@
 import { StatusCodes } from "http-status-codes";
-import AppError from "../../errorHelpers/AppError";
-import { prisma } from "../../lib/prisma";
-import { envVars } from "../../../config/env";
-import { ItemCategory } from "../../lib/prisma-exports";
+import AppError from "../../errorHelpers/AppError.js";
+import { prisma } from "../../lib/prisma.js";
+import { envVars } from "../../../config/env.js";
+import { ItemCategory } from "../../lib/prisma-exports.js";
 
 type DuplicateCheckInput = {
     userId: string;

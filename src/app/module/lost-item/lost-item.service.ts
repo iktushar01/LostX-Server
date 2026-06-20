@@ -1,30 +1,30 @@
 import { StatusCodes } from "http-status-codes";
 
-import { prisma } from "../../lib/prisma";
+import { prisma } from "../../lib/prisma.js";
 
-import { ItemCategory, LostItemStatus } from "../../lib/prisma-exports";
+import { ItemCategory, LostItemStatus } from "../../lib/prisma-exports.js";
 
-import AppError from "../../errorHelpers/AppError";
+import AppError from "../../errorHelpers/AppError.js";
 
-import { QueryBuilder } from "../../utils/QueryBuilder";
+import { QueryBuilder } from "../../utils/QueryBuilder.js";
 
-import { MatchService } from "../match/match.service";
+import { MatchService } from "../match/match.service.js";
 
-import { EmbeddingService } from "../chatbot/embedding.service";
+import { EmbeddingService } from "../chatbot/embedding.service.js";
 
-import { hashVerificationAnswer } from "../../utils/verification.util";
+import { hashVerificationAnswer } from "../../utils/verification.util.js";
 
-import { DuplicateService } from "../duplicate/duplicate.service";
+import { DuplicateService } from "../duplicate/duplicate.service.js";
 
-import { buildLocationString } from "../../utils/location.util";
+import { buildLocationString } from "../../utils/location.util.js";
 
-import { applyPublicItemPrivacy, type PublicItem } from "../../utils/item-privacy.util";
+import { applyPublicItemPrivacy, type PublicItem } from "../../utils/item-privacy.util.js";
 
-import { isStaffOrAdmin } from "../../utils/auth-roles.util";
+import { isStaffOrAdmin } from "../../utils/auth-roles.util.js";
 
-import { encryptIfPresent } from "../../utils/encryption.util";
+import { encryptIfPresent } from "../../utils/encryption.util.js";
 
-import { stripSecretFields, withDecryptedPrivateDescription } from "../../utils/item-secrets.util";
+import { stripSecretFields, withDecryptedPrivateDescription } from "../../utils/item-secrets.util.js";
 
 import {
 
@@ -32,7 +32,7 @@ import {
 
     parseVisibilityFlag,
 
-} from "../../utils/visibility-defaults.util";
+} from "../../utils/visibility-defaults.util.js";
 
 
 
@@ -308,7 +308,7 @@ export const LostItemService = {
 
 
 
-        const result = await new QueryBuilder(prisma.lostItem as import("../../interfaces/query.interface").PrismaModelDelegate, query, {
+        const result = await new QueryBuilder(prisma.lostItem as import("../../interfaces/query.interface.js").PrismaModelDelegate, query, {
 
             searchableFields: ["title", "description", "location", "building"],
 

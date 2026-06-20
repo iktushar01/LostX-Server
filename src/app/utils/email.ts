@@ -1,6 +1,6 @@
 import nodemailer from "nodemailer";
-import { envVars } from "../../config/env";
-import AppError from "../errorHelpers/AppError";
+import { envVars } from "../../config/env.js";
+import AppError from "../errorHelpers/AppError.js";
 import { StatusCodes } from "http-status-codes";
 import path from "node:path";
 import { fileURLToPath } from "node:url";

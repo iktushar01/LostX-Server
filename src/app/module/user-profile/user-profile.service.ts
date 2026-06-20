@@ -1,13 +1,13 @@
 import { StatusCodes } from "http-status-codes";
-import { prisma } from "../../lib/prisma";
+import { prisma } from "../../lib/prisma.js";
 import {
     ClaimStatus,
     FoundItemStatus,
     LostItemStatus,
     UserStatus,
-} from "../../lib/prisma-exports";
-import AppError from "../../errorHelpers/AppError";
-import { UserTrustService } from "../user-trust/user-trust.service";
+} from "../../lib/prisma-exports.js";
+import AppError from "../../errorHelpers/AppError.js";
+import { UserTrustService } from "../user-trust/user-trust.service.js";
 
 const DELETED_NAME = "Deleted user";
 

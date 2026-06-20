@@ -1,4 +1,4 @@
-import { seedSuperAdmin } from "./app/utils/seed";
+import { seedSuperAdmin } from "./app/utils/seed.js";
 
 let bootstrapped = false;
 

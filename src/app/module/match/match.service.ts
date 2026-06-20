@@ -1,6 +1,6 @@
-import { prisma } from "../../lib/prisma";
-import { FoundItemStatus, ItemCategory, LostItemStatus } from "../../lib/prisma-exports";
-import { NotificationService } from "../notification/notification.service";
+import { prisma } from "../../lib/prisma.js";
+import { FoundItemStatus, ItemCategory, LostItemStatus } from "../../lib/prisma-exports.js";
+import { NotificationService } from "../notification/notification.service.js";
 
 export const MATCH_HIGH_THRESHOLD = 70;
 export const MATCH_SUGGESTION_MIN = 35;

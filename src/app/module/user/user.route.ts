@@ -1,17 +1,17 @@
 import { Router } from "express";
-import { Role } from "../../lib/prisma-exports";
-import { checkAuth } from "../../middleware/checkAuth";
-import { validateRequest } from "../../middleware/validateRequest";
-import { UserController } from "./user.controller";
-import { UserProfileController } from "../user-profile/user-profile.controller";
+import { Role } from "../../lib/prisma-exports.js";
+import { checkAuth } from "../../middleware/checkAuth.js";
+import { validateRequest } from "../../middleware/validateRequest.js";
+import { UserController } from "./user.controller.js";
+import { UserProfileController } from "../user-profile/user-profile.controller.js";
 import {
     adminUpdateReportSchema,
     createReportSchema,
     createReviewSchema,
     listReviewsQuerySchema,
     userIdParamSchema,
-} from "../user-profile/user-profile.validation";
-import { createAdminZodSchema } from "./user.validation";
+} from "../user-profile/user-profile.validation.js";
+import { createAdminZodSchema } from "./user.validation.js";
 import { z } from "zod";
 
 const router = Router();

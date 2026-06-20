@@ -1,5 +1,5 @@
-import { ItemCategory } from "../lib/prisma-exports";
-import { isSensitiveCategory } from "./privacy.util";
+import { ItemCategory } from "../lib/prisma-exports.js";
+import { isSensitiveCategory } from "./privacy.util.js";
 
 export type ItemVisibilityFlags = {
     showImagePublic: boolean;

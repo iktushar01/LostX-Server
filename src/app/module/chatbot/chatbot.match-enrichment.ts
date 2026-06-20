@@ -1,14 +1,14 @@
-import { prisma } from "../../lib/prisma";
-import { LostItemStatus } from "../../lib/prisma-exports";
-import { type MatchableItem, scoreLostFoundPair } from "../match/match.service";
-import type { ChatbotMatch } from "./chatbot.interface";
-import type { SearchIntent } from "./chatbot.intent";
+import { prisma } from "../../lib/prisma.js";
+import { LostItemStatus } from "../../lib/prisma-exports.js";
+import { type MatchableItem, scoreLostFoundPair } from "../match/match.service.js";
+import type { ChatbotMatch } from "./chatbot.interface.js";
+import type { SearchIntent } from "./chatbot.intent.js";
 
 const toMatchableLost = (item: {
     id: string;
     title: string;
     description: string;
-    category: import("../../lib/prisma-exports").ItemCategory;
+    category: import("../../lib/prisma-exports.js").ItemCategory;
     location: string;
     dateLost: Date;
     imageUrl: string | null;
@@ -22,7 +22,7 @@ const toMatchableFound = (item: {
     id: string;
     title: string;
     description: string;
-    category: import("../../lib/prisma-exports").ItemCategory;
+    category: import("../../lib/prisma-exports.js").ItemCategory;
     location: string;
     dateFound: Date;
     imageUrl: string | null;
@@ -90,7 +90,7 @@ export const enrichMatchesWithRuleScores = async (
                 id: match.id,
                 title: match.title,
                 description: match.description,
-                category: match.category as import("../../lib/prisma-exports").ItemCategory,
+                category: match.category as import("../../lib/prisma-exports.js").ItemCategory,
                 location: match.location,
                 dateFound: new Date(match.date),
                 imageUrl: match.imageUrl,
@@ -113,7 +113,7 @@ export const enrichMatchesWithRuleScores = async (
                 id: match.id,
                 title: match.title,
                 description: match.description,
-                category: match.category as import("../../lib/prisma-exports").ItemCategory,
+                category: match.category as import("../../lib/prisma-exports.js").ItemCategory,
                 location: match.location,
                 dateLost: new Date(match.date),
                 imageUrl: match.imageUrl,

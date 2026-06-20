@@ -1,4 +1,4 @@
-import type { Role, UserStatus } from "../../lib/prisma-exports";
+import type { Role, UserStatus } from "../../lib/prisma-exports.js";
 
 export interface IUploadedFile {
   path: string;       // Cloudinary URL

@@ -1,10 +1,10 @@
 import { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
-import { catchAsync } from "../../shared/catchAsync";
-import { sendResponse } from "../../shared/sendResponse";
-import { IRequestUser } from "../auth/auth.interface";
-import { getUploadedImageUrl } from "../../utils/uploadItemImage";
-import { LostItemService } from "./lost-item.service";
+import { catchAsync } from "../../shared/catchAsync.js";
+import { sendResponse } from "../../shared/sendResponse.js";
+import { IRequestUser } from "../auth/auth.interface.js";
+import { getUploadedImageUrl } from "../../utils/uploadItemImage.js";
+import { LostItemService } from "./lost-item.service.js";
 
 const create = catchAsync(async (req: Request, res: Response) => {
     const user = req.user as IRequestUser;

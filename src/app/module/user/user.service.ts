@@ -1,11 +1,11 @@
-import { Role, UserRole } from "../../lib/prisma-exports";
-import AppError from "../../errorHelpers/AppError";
-import { auth } from "../../lib/auth";
-import { prisma } from "../../lib/prisma";
+import { Role, UserRole } from "../../lib/prisma-exports.js";
+import AppError from "../../errorHelpers/AppError.js";
+import { auth } from "../../lib/auth.js";
+import { prisma } from "../../lib/prisma.js";
 import { StatusCodes } from "http-status-codes";
 import {
     ICreateAdminPayload,
-} from "./user.interface";
+} from "./user.interface.js";
 
 // ─── Shared select shapes ─────────────────────────────────────────────────────
 

@@ -1,6 +1,6 @@
 import { ZodError } from "zod";
 import { StatusCodes } from "http-status-codes";
-import { TypeErrorSource } from "../interfaces/error.interfaces";
+import { TypeErrorSource } from "../interfaces/error.interfaces.js";
 
 
 const handleZodError = (error: ZodError) => {

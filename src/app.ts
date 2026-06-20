@@ -3,6 +3,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import { toNodeHandler } from "better-auth/node";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { envVars } from "./config/env";
 import { getAllowedOrigins } from "./config/origins";
 import { IndexRoute } from "./app/routes/index";
@@ -10,13 +11,13 @@ import { globalErrorhandler } from "./app/middleware/globalErrorhandler";
 import { notFound } from "./app/middleware/notFound";
 import { auth } from "./app/lib/auth";
 import { ExpiryService } from "./app/module/expiry/expiry.service";
-import { ensureVercelBootstrap } from "./vercel-bootstrap";
 
 const app: Application = express();
 const allowedOrigins = getAllowedOrigins();
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 app.set("view engine", "ejs");
-app.set("views", path.resolve(process.cwd(), "src/app/templates"));
+app.set("views", path.resolve(__dirname, "app/templates"));
 
 const corsOptions = {
     origin: (
@@ -37,11 +38,6 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.options(/.*/, cors(corsOptions));
-
-app.use(async (_req, _res, next) => {
-    await ensureVercelBootstrap();
-    next();
-});
 
 app.use("/api/auth", toNodeHandler(auth))
 app.use(express.json());

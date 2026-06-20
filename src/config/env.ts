@@ -82,25 +82,15 @@ const requiredEnvVariables = [
 
 
 const missingEnvVariables = requiredEnvVariables.filter((variable) => {
-    if (process.env[variable]) {
-        return false;
-    }
-
-    if (variable === "PORT" && process.env.VERCEL === "1") {
-        return false;
-    }
-
-    if (variable === "NODE_ENV" && process.env.VERCEL === "1") {
-        return false;
-    }
-
+    if (process.env[variable]) return false;
+    if ((variable === "PORT" || variable === "NODE_ENV") && process.env.VERCEL === "1") return false;
     return true;
 });
 
 if (missingEnvVariables.length > 0) {
-    throw new Error(
-        `Missing required environment variables: ${missingEnvVariables.join(", ")}`,
-    );
+    const msg = `Missing required environment variables: ${missingEnvVariables.join(", ")}`;
+    console.error(`[LostX] ❌ ${msg}`);
+    throw new Error(msg);
 }
 
 const loadEnvVariables = (): EnvConfig => {

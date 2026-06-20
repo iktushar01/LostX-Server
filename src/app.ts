@@ -4,19 +4,22 @@ import cookieParser from "cookie-parser";
 import { toNodeHandler } from "better-auth/node";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { envVars } from "./config/env";
-import { getAllowedOrigins } from "./config/origins";
-import { IndexRoute } from "./app/routes/index";
-import { globalErrorhandler } from "./app/middleware/globalErrorhandler";
-import { notFound } from "./app/middleware/notFound";
-import { auth } from "./app/lib/auth";
-import { ExpiryService } from "./app/module/expiry/expiry.service";
+import { envVars, configError } from "./config/env.js";
+import { getAllowedOrigins } from "./config/origins.js";
+import { IndexRoute } from "./app/routes/index.js";
+import { globalErrorhandler } from "./app/middleware/globalErrorhandler.js";
+import { notFound } from "./app/middleware/notFound.js";
+import { auth } from "./app/lib/auth.js";
+import { ExpiryService } from "./app/module/expiry/expiry.service.js";
 
 const app: Application = express();
 const allowedOrigins = getAllowedOrigins();
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// Resolve the directory of this file — works for both tsc output and esbuild bundles
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 app.set("view engine", "ejs");
+// Attempt both possible locations (compiled dist/ or source src/)
 app.set("views", path.resolve(__dirname, "app/templates"));
 
 const corsOptions = {
@@ -28,7 +31,6 @@ const corsOptions = {
             callback(null, true);
             return;
         }
-
         callback(null, false);
     },
     credentials: true,
@@ -39,21 +41,29 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.options(/.*/, cors(corsOptions));
 
-app.use("/api/auth", toNodeHandler(auth))
+app.use("/api/auth", toNodeHandler(auth));
 app.use(express.json());
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 
-app.get("/", (req: Request, res: Response) => {
-  res.send("LostX Server is running 🚀");
+app.get("/", (_req: Request, res: Response) => {
+    res.send("LostX Server is running 🚀");
 });
 
 app.get("/health", async (_req: Request, res: Response) => {
-  res.status(200).json({
-    success: true,
-    message: "LostX API is healthy",
-    environment: envVars.NODE_ENV,
-  });
+    if (configError) {
+        res.status(503).json({
+            success: false,
+            message: "Server misconfigured",
+            error: configError,
+        });
+        return;
+    }
+    res.status(200).json({
+        success: true,
+        message: "LostX API is healthy",
+        environment: envVars.NODE_ENV,
+    });
 });
 
 app.get("/api/cron/expiry", async (req: Request, res: Response) => {
@@ -69,7 +79,6 @@ app.get("/api/cron/expiry", async (req: Request, res: Response) => {
 });
 
 app.use("/api/v1", IndexRoute);
-
 
 app.use(globalErrorhandler);
 app.use(notFound);

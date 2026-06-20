@@ -1,4 +1,4 @@
-import express, { Application, Request, Response } from "express";
+import express, { Application, NextFunction, Request, Response, Router } from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import { toNodeHandler } from "better-auth/node";
@@ -6,11 +6,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { envVars, configError } from "./config/env.js";
 import { getAllowedOrigins } from "./config/origins.js";
-import { IndexRoute } from "./app/routes/index.js";
 import { globalErrorhandler } from "./app/middleware/globalErrorhandler.js";
 import { notFound } from "./app/middleware/notFound.js";
-import { auth } from "./app/lib/auth.js";
-import { ExpiryService } from "./app/module/expiry/expiry.service.js";
 
 const app: Application = express();
 const allowedOrigins = getAllowedOrigins();
@@ -41,7 +38,35 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.options(/.*/, cors(corsOptions));
 
-app.use("/api/auth", toNodeHandler(auth));
+let authHandler: ReturnType<typeof toNodeHandler> | null = null;
+const getAuthHandler = async () => {
+    if (authHandler) {
+        return authHandler;
+    }
+    const { auth } = await import("./app/lib/auth.js");
+    authHandler = toNodeHandler(auth);
+    return authHandler;
+};
+
+let indexRoute: Router | null = null;
+const getIndexRoute = async () => {
+    if (indexRoute) {
+        return indexRoute;
+    }
+    const { IndexRoute } = await import("./app/routes/index.js");
+    indexRoute = IndexRoute;
+    return indexRoute;
+};
+
+app.use("/api/auth", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const handler = await getAuthHandler();
+        await handler(req, res);
+        return;
+    } catch (error) {
+        return next(error);
+    }
+});
 app.use(express.json());
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
@@ -66,7 +91,7 @@ app.get("/health", async (_req: Request, res: Response) => {
     });
 });
 
-app.get("/api/cron/expiry", async (req: Request, res: Response) => {
+app.get("/api/cron/expiry", async (req: Request, res: Response, next: NextFunction) => {
     const cronSecret = process.env.CRON_SECRET;
 
     if (!cronSecret || req.headers.authorization !== `Bearer ${cronSecret}`) {
@@ -74,11 +99,23 @@ app.get("/api/cron/expiry", async (req: Request, res: Response) => {
         return;
     }
 
-    const result = await ExpiryService.archiveStaleItems();
-    res.status(200).json({ success: true, data: result });
+    try {
+        const { ExpiryService } = await import("./app/module/expiry/expiry.service.js");
+        const result = await ExpiryService.archiveStaleItems();
+        res.status(200).json({ success: true, data: result });
+    } catch (error) {
+        next(error);
+    }
 });
 
-app.use("/api/v1", IndexRoute);
+app.use("/api/v1", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const router = await getIndexRoute();
+        return router(req, res, next);
+    } catch (error) {
+        return next(error);
+    }
+});
 
 app.use(globalErrorhandler);
 app.use(notFound);

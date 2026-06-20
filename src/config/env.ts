@@ -75,6 +75,7 @@ const requiredEnvVariables = [
     "IMGBB_API_KEY",
     "SUPER_ADMIN_EMAIL",
     "SUPER_ADMIN_PASSWORD",
+    "ENCRYPTION_KEY",
 ];
 
 const missingEnvVariables = requiredEnvVariables.filter(

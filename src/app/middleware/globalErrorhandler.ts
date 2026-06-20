@@ -3,7 +3,6 @@ import { NextFunction, Request, Response } from "express";
 import multer from "multer";
 import { StatusCodes } from "http-status-codes";
 import z from "zod";
-import { Prisma } from "../lib/prisma-exports";
 import AppError from "../errorHelpers/AppError";
 import { envVars } from "../../config/env";
 import handleZodError from "../errorHelpers/handlezoderror";
@@ -55,18 +54,25 @@ export const globalErrorhandler = (err: any, req: Request, res: Response, next: 
                 : err.message;
         errorSources = [{ path: "files", message }];
     } else if (
-        err instanceof Prisma.PrismaClientKnownRequestError &&
+        typeof err === "object" &&
+        err !== null &&
+        "name" in err &&
+        err.name === "PrismaClientKnownRequestError" &&
+        "code" in err &&
         err.code === "P2002"
     ) {
         statusCode = StatusCodes.CONFLICT;
         message = "This information already exists. Please use a different value.";
         errorSources = [
             {
-                path: Array.isArray(err.meta?.target) ? String(err.meta.target[0]) : "",
+                path:
+                    Array.isArray((err as { meta?: { target?: unknown } }).meta?.target)
+                        ? String((err as { meta?: { target?: unknown[] } }).meta?.target?.[0] ?? "")
+                        : "",
                 message,
             }
         ];
-        stack = err.stack;
+        stack = "stack" in err ? String((err as { stack?: string }).stack ?? "") : undefined;
     } else if (err instanceof AppError) {
         statusCode = err.statusCode;
         message = err.message;

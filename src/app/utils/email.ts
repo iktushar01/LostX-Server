@@ -3,6 +3,7 @@ import { envVars } from "../../config/env";
 import AppError from "../errorHelpers/AppError";
 import { StatusCodes } from "http-status-codes";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import ejs from "ejs";
 
 
@@ -31,7 +32,9 @@ interface EmailOptions {
 
 export const sendEmail = async ({ subject, to, templateName, templateData, attachments }: EmailOptions) => {
     try {
-        const templatePath = path.resolve(process.cwd(), `src/app/templates/${templateName}.ejs`);
+        const __filename = fileURLToPath(import.meta.url);
+        const __dirname = path.dirname(__filename);
+        const templatePath = path.resolve(__dirname, `../templates/${templateName}.ejs`);
         const html = await ejs.renderFile(templatePath, templateData);
         const info = await transporter.sendMail({
             from: `"LostX" <${envVars.EMAIL_USER}>`,

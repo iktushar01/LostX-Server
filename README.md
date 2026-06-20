@@ -12,7 +12,7 @@ University lost & found API built with Express, Prisma, PostgreSQL (Neon), and b
    - **Install Command**: leave empty (uses `vercel.json`)
 3. Add every variable from `.env.example` under **Environment Variables**.
 4. Run migrations once: `npx prisma migrate deploy`
-5. Deploy. Flow: `pnpm run build` → `dist/app.js` → `api/index.js` → all routes via rewrite.
+5. Deploy. Entry point is `src/server.ts` (default export Express app). Do not set custom output routing in the dashboard.
 
 Preview deployments automatically allow the current `VERCEL_URL` for CORS and better-auth. For extra preview domains, set `ALLOWED_ORIGINS` as a comma-separated list.
 
@@ -21,9 +21,9 @@ Preview deployments automatically allow the current `VERCEL_URL` for CORS and be
 If you see `404: NOT_FOUND`:
 
 - **Root cause:** Vercel had no serverless function attached to `/`.
-- **Fix:** All traffic is rewritten to `api/index.js` (see `vercel.json`). Do not set an **Output Directory** in the Vercel dashboard.
+- **Fix:** Ensure the project root is this server repo, and leave **Output Directory** empty so Vercel treats it as Node functions (not static output).
 - In **Project Settings → General**, set **Framework Preset** to `Other` and clear **Build Command** / **Output Directory** overrides (leave empty so `vercel.json` controls the build).
-- Redeploy after pushing `api/index.js`.
+- Redeploy after pushing the latest `vercel.json` and server code.
 
 If you see `ERR_MODULE_NOT_FOUND` for paths like `src/config/origins` (no `.js` suffix):
 

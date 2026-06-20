@@ -1,6 +1,4 @@
-import prismaPkg from "../../generated/prisma/index.js";
-
-const prismaModule = prismaPkg as typeof import("../../generated/prisma/index.js");
+import * as prismaModule from "../../generated/prisma/index.js";
 
 export const PrismaClient = prismaModule.PrismaClient;
 export const Prisma = prismaModule.Prisma;
